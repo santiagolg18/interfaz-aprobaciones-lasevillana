@@ -1,0 +1,727 @@
+{
+  "name": "[DEV] Facturas — Procesamiento (Gmail)",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "filters": {
+          "q": "has:attachment filename:zip"
+        }
+      },
+      "id": "gmail-trigger",
+      "name": "Gmail Trigger",
+      "type": "n8n-nodes-base.gmailTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        208,
+        208
+      ],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "SuYdv053KLqK6FKJ",
+          "name": "Gmail OAuth2 API"
+        }
+      },
+      "notes": "TODO: asignar credencial Gmail OAuth2. El filtro q hace que solo dispare con correos que tienen ZIP adjunto."
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "messageId": "={{ $json.id }}",
+        "simple": false,
+        "options": {
+          "dataPropertyAttachmentsPrefixName": "attachment_",
+          "downloadAttachments": true
+        }
+      },
+      "id": "gmail-get-message",
+      "name": "Descargar Email con Adjuntos",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        432,
+        208
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "webhookId": "05d372d3-6952-4a96-a85a-1f9c97716e31",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "SuYdv053KLqK6FKJ",
+          "name": "Gmail OAuth2 API"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "notes": "Descarga todos los adjuntos como binarios attachment_0, attachment_1, ..."
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first();\nlet zipKey = null;\nfor (const key of Object.keys(item.binary || {})) {\n  const name = (item.binary[key].fileName || '').toLowerCase();\n  if (name.endsWith('.zip')) { zipKey = key; break; }\n}\nif (!zipKey) {\n  throw new Error('No se encontró ZIP en el correo ' + item.json.id);\n}\nreturn [{\n  json: { messageId: item.json.id, zipFileName: item.binary[zipKey].fileName },\n  binary: { data: item.binary[zipKey] }\n}];"
+      },
+      "id": "locate-zip",
+      "name": "Localizar ZIP",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        656,
+        208
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "extract-zip",
+      "name": "Extraer ZIP",
+      "type": "n8n-nodes-base.compression",
+      "typeVersion": 1.1,
+      "position": [
+        880,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Imprime info de TODOS los archivos que salieron del ZIP para diagnosticar\nconst items = $input.all();\nlet pdfBinary = null;\nlet xmlBinary = null;\nconst seenFiles = [];\n\nfor (const item of items) {\n  const keys = Object.keys(item.binary || {});\n  for (const key of keys) {\n    const b = item.binary[key];\n    const fileName = (b.fileName || '').toLowerCase();\n    seenFiles.push({ binaryKey: key, fileName: b.fileName, mimeType: b.mimeType, size: b.fileSize });\n    if (fileName.endsWith('.pdf')) pdfBinary = b;\n    if (fileName.endsWith('.xml')) xmlBinary = b;\n  }\n}\n\n// Output: siempre retorna el JSON con diagnostico, y SOLO pasa al siguiente si encuentra XML\nif (!xmlBinary) {\n  return [{ json: { error: 'No se encontró archivo .xml', seenFiles } }];\n}\n\nreturn [{\n  json: { ok: true, seenFiles },\n  binary: {\n    ...(pdfBinary ? { pdf: pdfBinary } : {}),\n    xml: xmlBinary\n  }\n}];"
+      },
+      "id": "split-pdf-xml",
+      "name": "Separar PDF/XML",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1104,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Leer el XML completo (n8n Cloud almacena binarios grandes externamente)\nconst buffer = await this.helpers.getBinaryDataBuffer(0, 'xml');\nlet xml = buffer.toString('utf-8');\n\n// DIAN envía <AttachedDocument> con la factura real en un CDATA anidado.\nconst cdataRegex = /<!\\[CDATA\\[([\\s\\S]*?)\\]\\]>/g;\nlet match;\nwhile ((match = cdataRegex.exec(xml)) !== null) {\n  if (match[1].includes('<Invoice')) { xml = match[1]; break; }\n}\n\n// Helpers con regex que requiere que el tag termine exactamente (no matchea cbc:IdentificationCode cuando buscamos cbc:ID).\nconst tagRegex = (tag) => new RegExp(`<${tag}(?:\\\\s[^>]*)?>([\\\\s\\\\S]*?)</${tag}>`, 'i');\nconst pick = (tag, src = xml) => {\n  const m = src.match(tagRegex(tag));\n  return m ? m[1].trim() : '';\n};\nconst blockOf = (tag, src = xml) => {\n  const m = src.match(tagRegex(tag));\n  return m ? m[1] : '';\n};\n\n// Campos directos de la Invoice\nconst invoiceNumber = pick('cbc:ID');\nconst issueDate     = pick('cbc:IssueDate');\nconst dueDate       = pick('cbc:PaymentDueDate');\n\n// Monto total\nconst totalsBlock = blockOf('cac:LegalMonetaryTotal');\nconst totalAmount = parseFloat(pick('cbc:PayableAmount', totalsBlock)) || 0;\n\n// Proveedor\nconst supplierBlock = blockOf('cac:AccountingSupplierParty');\nconst taxBlock = blockOf('cac:PartyTaxScheme', supplierBlock);\nconst legalBlock = blockOf('cac:PartyLegalEntity', supplierBlock);\nconst partyNameBlock = blockOf('cac:PartyName', supplierBlock);\n\nconst supplierNit = pick('cbc:CompanyID', taxBlock)\n                 || pick('cbc:CompanyID', legalBlock);\n\nlet supplierName = pick('cbc:RegistrationName', legalBlock)\n                || pick('cbc:RegistrationName', taxBlock)\n                || pick('cbc:Name', partyNameBlock);\n\nreturn [{\n  json: {\n    supplier_nit: String(supplierNit).trim(),\n    supplier_name: String(supplierName).trim(),\n    invoice_number: String(invoiceNumber).trim(),\n    total_amount: totalAmount,\n    issue_date: issueDate,\n    due_date: dueDate,\n    currency: 'COP',\n    email_message_id: $('Gmail Trigger').first().json.id || ''\n  },\n  binary: { pdf: $input.first().binary.pdf }\n}];"
+      },
+      "id": "parse-xml",
+      "name": "Parsear XML DIAN",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1328,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://hbctaadebquqrjfofwzt.supabase.co/storage/v1/object/invoices/{{ $json.invoice_number }}.pdf",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhiY3RhYWRlYnF1cXJqZm9md3p0Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NjIxNDQyNSwiZXhwIjoyMDkxNzkwNDI1fQ.s6yjWYoz99hNZGa3f2XbUkPBgcgdk1dNG_s0ezMVExg"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/pdf"
+            },
+            {
+              "name": "x-upsert",
+              "value": "true"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "binaryData",
+        "inputDataFieldName": "pdf",
+        "options": {}
+      },
+      "id": "upload-pdf",
+      "name": "Subir PDF a Storage",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1552,
+        208
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "url": "=https://hbctaadebquqrjfofwzt.supabase.co/rest/v1/suppliers?nit=eq.{{ $('Parsear XML DIAN').item.json.supplier_nit }}&select=*,approval_rules(*,approvers(*))",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhiY3RhYWRlYnF1cXJqZm9md3p0Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NjIxNDQyNSwiZXhwIjoyMDkxNzkwNDI1fQ.s6yjWYoz99hNZGa3f2XbUkPBgcgdk1dNG_s0ezMVExg"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhiY3RhYWRlYnF1cXJqZm9md3p0Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NjIxNDQyNSwiZXhwIjoyMDkxNzkwNDI1fQ.s6yjWYoz99hNZGa3f2XbUkPBgcgdk1dNG_s0ezMVExg"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "http-get-supplier",
+      "name": "Buscar Proveedor + Reglas",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1776,
+        208
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://hbctaadebquqrjfofwzt.supabase.co/rest/v1/invoices",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhiY3RhYWRlYnF1cXJqZm9md3p0Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NjIxNDQyNSwiZXhwIjoyMDkxNzkwNDI1fQ.s6yjWYoz99hNZGa3f2XbUkPBgcgdk1dNG_s0ezMVExg"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhiY3RhYWRlYnF1cXJqZm9md3p0Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NjIxNDQyNSwiZXhwIjoyMDkxNzkwNDI1fQ.s6yjWYoz99hNZGa3f2XbUkPBgcgdk1dNG_s0ezMVExg"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "id": "http-insert-invoice",
+      "name": "Insertar Factura",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        2224,
+        208
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const supplier = $('Buscar Proveedor + Reglas').first().json;\nconst invoice = $input.first().json;\nconst rules = supplier.approval_rules || [];\nconst crypto = require('crypto');\n\nreturn rules.map(rule => ({\n  json: {\n    invoice_id: invoice.id,\n    approver_id: rule.approver_id,\n    approver: rule.approvers,\n    invoice,\n    token: crypto.randomBytes(32).toString('hex'),\n    status: 'pending'\n  }\n}));\n"
+      },
+      "id": "build-approvals",
+      "name": "Generar Aprobaciones",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2448,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://hbctaadebquqrjfofwzt.supabase.co/rest/v1/approvals",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhiY3RhYWRlYnF1cXJqZm9md3p0Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NjIxNDQyNSwiZXhwIjoyMDkxNzkwNDI1fQ.s6yjWYoz99hNZGa3f2XbUkPBgcgdk1dNG_s0ezMVExg"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhiY3RhYWRlYnF1cXJqZm9md3p0Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NjIxNDQyNSwiZXhwIjoyMDkxNzkwNDI1fQ.s6yjWYoz99hNZGa3f2XbUkPBgcgdk1dNG_s0ezMVExg"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "resolution=ignore-duplicates,return=representation"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ invoice_id: $json.invoice_id, approver_id: $json.approver_id, token: $json.token, status: $json.status }) }}",
+        "options": {}
+      },
+      "id": "http-insert-approval",
+      "name": "Insertar Approval",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        2672,
+        208
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Generar Aprobaciones').item.json.approver.email }}",
+        "subject": "=🔔 Aprobación requerida: Factura {{ $('Generar Aprobaciones').item.json.invoice.invoice_number }} — {{ $('Generar Aprobaciones').item.json.invoice.supplier_name }}",
+        "message": "=<div style=\"font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;\"><h2 style=\"color:#2563eb;\">Solicitud de Aprobación de Factura</h2><table style=\"width:100%;border-collapse:collapse;margin:20px 0;\"><tr><td style=\"padding:8px;border:1px solid #ddd;font-weight:bold;\">Proveedor</td><td style=\"padding:8px;border:1px solid #ddd;\">{{ $('Generar Aprobaciones').item.json.invoice.supplier_name }} (NIT: {{ $('Generar Aprobaciones').item.json.invoice.supplier_nit }})</td></tr><tr><td style=\"padding:8px;border:1px solid #ddd;font-weight:bold;\">Factura N°</td><td style=\"padding:8px;border:1px solid #ddd;\">{{ $('Generar Aprobaciones').item.json.invoice.invoice_number }}</td></tr><tr><td style=\"padding:8px;border:1px solid #ddd;font-weight:bold;\">Monto</td><td style=\"padding:8px;border:1px solid #ddd;\">${{ $('Generar Aprobaciones').item.json.invoice.total_amount }} COP</td></tr></table><div style=\"text-align:center;margin:20px 0;\"><a href=\"https://hbctaadebquqrjfofwzt.supabase.co/storage/v1/object/public/invoices/{{ $('Generar Aprobaciones').item.json.invoice.invoice_number }}.pdf\" target=\"_blank\" style=\"display:inline-block;background:#f3f4f6;color:#1f2937;padding:10px 20px;text-decoration:none;border:1px solid #d1d5db;border-radius:8px;font-weight:bold;font-size:14px;\">📄 Ver PDF de la factura</a></div><div style=\"text-align:center;margin:20px 0 30px 0;font-size:0;\"><a href=\"https://santy0218.app.n8n.cloud/webhook/aprobar?token={{ $('Generar Aprobaciones').item.json.token }}&action=approve\" style=\"display:inline-block;background:#16a34a;color:#ffffff;padding:12px 24px;text-decoration:none;border-radius:8px;font-weight:bold;font-size:15px;margin:6px 8px;min-width:140px;text-align:center;box-sizing:border-box;\">✅ APROBAR</a><a href=\"https://santy0218.app.n8n.cloud/webhook/aprobar?token={{ $('Generar Aprobaciones').item.json.token }}&action=reject\" style=\"display:inline-block;background:#dc2626;color:#ffffff;padding:12px 24px;text-decoration:none;border-radius:8px;font-weight:bold;font-size:15px;margin:6px 8px;min-width:140px;text-align:center;box-sizing:border-box;\">❌ RECHAZAR</a></div></div>",
+        "options": {}
+      },
+      "id": "send-gmail",
+      "name": "Gmail al Aprobador",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        2896,
+        208
+      ],
+      "webhookId": "c260e850-a5c0-4a91-a425-200739a8361a",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "SuYdv053KLqK6FKJ",
+          "name": "Gmail OAuth2 API"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const supplier = $('Buscar Proveedor + Reglas').first().json;\nconst parsed = $('Parsear XML DIAN').item.json;\n\nreturn [{\n  json: {\n    supplier_id: supplier.id,\n    supplier_nit: parsed.supplier_nit,\n    supplier_name: parsed.supplier_name,\n    invoice_number: parsed.invoice_number,\n    total_amount: parseFloat(parsed.total_amount) || 0,\n    issue_date: parsed.issue_date || null,\n    due_date: parsed.due_date || null,\n    currency: 'COP',\n    required_approvals: parseInt(supplier.required_approvals) || 1,\n    pdf_storage_path: 'invoices/' + parsed.invoice_number + '.pdf',\n    email_message_id: parsed.email_message_id || '',\n    status: 'pending'\n  }\n}];"
+      },
+      "id": "preparar-factura",
+      "name": "Preparar Factura",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2000,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "path": "aprobar",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "wh-trigger",
+      "name": "Webhook Aprobar",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        208,
+        528
+      ],
+      "webhookId": "432f3f87-4678-411e-bacd-ec5ab7ee894e",
+      "onError": "continueRegularOutput",
+      "notes": "GET /aprobar?token=...&action=approve|reject — llamado desde el botón del email."
+    },
+    {
+      "parameters": {
+        "url": "=https://hbctaadebquqrjfofwzt.supabase.co/rest/v1/approvals?token=eq.{{ $json.query.token }}&select=*,invoices(*),approvers(name,email)",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhiY3RhYWRlYnF1cXJqZm9md3p0Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NjIxNDQyNSwiZXhwIjoyMDkxNzkwNDI1fQ.s6yjWYoz99hNZGa3f2XbUkPBgcgdk1dNG_s0ezMVExg"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhiY3RhYWRlYnF1cXJqZm9md3p0Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NjIxNDQyNSwiZXhwIjoyMDkxNzkwNDI1fQ.s6yjWYoz99hNZGa3f2XbUkPBgcgdk1dNG_s0ezMVExg"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "http-get-approval-web",
+      "name": "Obtener Aprobación (Web)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        432,
+        528
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "onError": "continueRegularOutput",
+      "notes": "TODO: migrar a Header Auth credential."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "cond1",
+              "leftValue": "={{ $json.status }}",
+              "rightValue": "pending",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-pending-web",
+      "name": "¿Sigue pendiente? (Web)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        656,
+        528
+      ]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=https://hbctaadebquqrjfofwzt.supabase.co/rest/v1/approvals?token=eq.{{ $('Webhook Aprobar').item.json.query.token }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhiY3RhYWRlYnF1cXJqZm9md3p0Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NjIxNDQyNSwiZXhwIjoyMDkxNzkwNDI1fQ.s6yjWYoz99hNZGa3f2XbUkPBgcgdk1dNG_s0ezMVExg"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhiY3RhYWRlYnF1cXJqZm9md3p0Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NjIxNDQyNSwiZXhwIjoyMDkxNzkwNDI1fQ.s6yjWYoz99hNZGa3f2XbUkPBgcgdk1dNG_s0ezMVExg"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ status: $('Webhook Aprobar').item.json.query.action === 'approve' ? 'approved' : 'rejected', approved_at: $now.toISO(), ip_address: $('Webhook Aprobar').item.json.headers['x-forwarded-for'] || 'unknown' }) }}",
+        "options": {}
+      },
+      "id": "http-patch-approval-web",
+      "name": "PATCH Aprobación (Web)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        880,
+        432
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "onError": "continueRegularOutput",
+      "notes": "NO tocar invoices.current_approvals/status — trigger SQL lo maneja."
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "=<html><body style=\"font-family: Arial; text-align: center; padding: 50px;\"><h1>{{ $('Webhook Aprobar').item.json.query.action === 'approve' ? '✅ Factura Aprobada' : '❌ Factura Rechazada' }}</h1><p>Tu decisión ha sido registrada. Puedes cerrar esta ventana.</p></body></html>",
+        "options": {
+          "responseCode": 200,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "text/html; charset=utf-8"
+              }
+            ]
+          }
+        }
+      },
+      "id": "respond-ok-web",
+      "name": "Respond OK (Web)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1104,
+        432
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "<html><body style=\"font-family: Arial; text-align: center; padding: 50px;\"><h1>⚠️ Esta aprobación ya fue procesada</h1><p>El enlace ya no es válido. Si crees que es un error, contacta al encargado de compras.</p></body></html>",
+        "options": {
+          "responseCode": 200,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "text/html; charset=utf-8"
+              }
+            ]
+          }
+        }
+      },
+      "id": "respond-already-web",
+      "name": "Respond Ya Procesada (Web)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        880,
+        624
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://pdf-service-7s1b.onrender.com/generate-final-pdf",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ invoice_id: $('Obtener Aprobación (Web)').item.json.invoices.id }) }}",
+        "options": {}
+      },
+      "id": "http-pdf-web",
+      "name": "Disparar PDF Final (Web)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1328,
+        432
+      ],
+      "retryOnFail": true,
+      "maxTries": 2,
+      "onError": "continueRegularOutput",
+      "notes": "TODO: reemplazar URL por la del servicio FastAPI desplegado."
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Gmail Trigger": {
+      "main": [
+        [
+          {
+            "node": "Descargar Email con Adjuntos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Descargar Email con Adjuntos": {
+      "main": [
+        [
+          {
+            "node": "Localizar ZIP",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Localizar ZIP": {
+      "main": [
+        [
+          {
+            "node": "Extraer ZIP",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extraer ZIP": {
+      "main": [
+        [
+          {
+            "node": "Separar PDF/XML",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Separar PDF/XML": {
+      "main": [
+        [
+          {
+            "node": "Parsear XML DIAN",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parsear XML DIAN": {
+      "main": [
+        [
+          {
+            "node": "Subir PDF a Storage",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Subir PDF a Storage": {
+      "main": [
+        [
+          {
+            "node": "Buscar Proveedor + Reglas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insertar Factura": {
+      "main": [
+        [
+          {
+            "node": "Generar Aprobaciones",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generar Aprobaciones": {
+      "main": [
+        [
+          {
+            "node": "Insertar Approval",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insertar Approval": {
+      "main": [
+        [
+          {
+            "node": "Gmail al Aprobador",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar Proveedor + Reglas": {
+      "main": [
+        [
+          {
+            "node": "Preparar Factura",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Factura": {
+      "main": [
+        [
+          {
+            "node": "Insertar Factura",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook Aprobar": {
+      "main": [
+        [
+          {
+            "node": "Obtener Aprobación (Web)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Obtener Aprobación (Web)": {
+      "main": [
+        [
+          {
+            "node": "¿Sigue pendiente? (Web)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Sigue pendiente? (Web)": {
+      "main": [
+        [
+          {
+            "node": "PATCH Aprobación (Web)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Ya Procesada (Web)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PATCH Aprobación (Web)": {
+      "main": [
+        [
+          {
+            "node": "Respond OK (Web)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Respond OK (Web)": {
+      "main": [
+        [
+          {
+            "node": "Disparar PDF Final (Web)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "timezone": "America/Bogota",
+    "saveDataErrorExecution": "all",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "versionId": "c32e6b19-70dd-4ef1-b26d-13811e9b1521",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "a87f75b955412dbdaf9a6524f9a10e09454926fc840602db93bd8291c62b3c8b"
+  },
+  "id": "rxycOg9wuDeQ04hO",
+  "tags": []
+}
