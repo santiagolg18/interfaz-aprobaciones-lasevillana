@@ -1,4 +1,4 @@
-import { Receipt } from "lucide-react";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,8 +19,15 @@ export default async function LoginPage({
     <div className="flex min-h-screen items-center justify-center bg-neutral-50 px-4">
       <div className="w-full max-w-sm rounded-xl border bg-white p-8 shadow-sm">
         <div className="mb-6 flex flex-col items-center">
-          <div className="mb-3 flex size-11 items-center justify-center rounded-lg bg-primary/10 text-primary">
-            <Receipt className="size-5" />
+          <div className="mb-4">
+            <Image
+              src="https://res.cloudinary.com/dqnsskjfg/image/upload/v1776400912/Logo-La-Sevillana_usd6wm.png"
+              alt="Logo La Sevillana"
+              width={160}
+              height={80}
+              className="object-contain"
+              priority
+            />
           </div>
           <h1 className="text-lg font-semibold">Aprobaciones de Facturas</h1>
           <p className="text-sm text-muted-foreground">Inicia sesión para continuar</p>
