@@ -20,6 +20,7 @@ Construye un app web con **Next.js (App Router)** conectado a **Supabase** para 
 ```
 NEXT_PUBLIC_SUPABASE_URL=https://hbctaadebquqrjfofwzt.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=<eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhiY3RhYWRlYnF1cXJqZm9md3p0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYyMTQ0MjUsImV4cCI6MjA5MTc5MDQyNX0.zSMv7FzSWwUgnCN434U8vxBFG-hZn3f2GOLk7BIQwzQ>
+
 ```
 
 Usar la clave `anon` (pública), nunca la `service_role` en el frontend.
