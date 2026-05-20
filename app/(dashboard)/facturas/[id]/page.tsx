@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, FileCheck2 } from "lucide-react";
+import { ArrowLeft, FileCheck2, FileText } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Money } from "@/components/money";
 import { StatusBadge } from "@/components/status-badge";
 import { PdfViewer } from "@/components/pdf-viewer";
+import { PurchaseOrderUpload } from "@/components/purchase-order-upload";
 import { createClient } from "@/lib/supabase/server";
 import { formatDate, formatDateTime, storageUrl } from "@/lib/format";
 
@@ -42,6 +43,7 @@ export default async function FacturaDetallePage({ params }: { params: Params })
     invoice.pdf_storage_path ?? `${invoice.invoice_number}.pdf`,
   );
   const finalUrl = storageUrl(invoice.final_pdf_path);
+  const poUrl = storageUrl(invoice.po_storage_path);
 
   return (
     <div className="space-y-5">
@@ -62,6 +64,14 @@ export default async function FacturaDetallePage({ params }: { params: Params })
         </div>
         <div className="flex items-center gap-2">
           <StatusBadge status={invoice.status} />
+          {poUrl ? (
+            <Button asChild variant="outline" size="sm">
+              <a href={poUrl} target="_blank" rel="noreferrer">
+                <FileText className="size-4" />
+                Ver OC
+              </a>
+            </Button>
+          ) : null}
           {finalUrl ? (
             <Button asChild variant="outline" size="sm">
               <a href={finalUrl} target="_blank" rel="noreferrer">
@@ -134,6 +144,12 @@ export default async function FacturaDetallePage({ params }: { params: Params })
         </div>
 
         <aside className="space-y-4">
+          <PurchaseOrderUpload
+            invoiceId={invoice.id}
+            poUrl={poUrl}
+            poUploadedAt={invoice.po_uploaded_at}
+          />
+
           <div className="rounded-lg border bg-white p-4 space-y-3">
             <h2 className="text-sm font-semibold">Datos de la factura</h2>
             <DetailRow label="Proveedor" value={invoice.supplier_name} />

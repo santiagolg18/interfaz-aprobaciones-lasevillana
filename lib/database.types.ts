@@ -140,6 +140,8 @@ export type Database = {
           invoice_number: string
           issue_date: string | null
           pdf_storage_path: string | null
+          po_storage_path: string | null
+          po_uploaded_at: string | null
           received_at: string | null
           required_approvals: number
           status: string | null
@@ -162,6 +164,8 @@ export type Database = {
           invoice_number: string
           issue_date?: string | null
           pdf_storage_path?: string | null
+          po_storage_path?: string | null
+          po_uploaded_at?: string | null
           received_at?: string | null
           required_approvals?: number
           status?: string | null
@@ -184,6 +188,8 @@ export type Database = {
           invoice_number?: string
           issue_date?: string | null
           pdf_storage_path?: string | null
+          po_storage_path?: string | null
+          po_uploaded_at?: string | null
           received_at?: string | null
           required_approvals?: number
           status?: string | null
@@ -205,25 +211,46 @@ export type Database = {
       }
       suppliers: {
         Row: {
+          celular: string | null
+          contacto_facturacion: string | null
           created_at: string | null
+          direccion: string | null
+          email: string | null
           id: string
-          name: string
+          mail_contacto_facturacion: string | null
           nit: string
+          nombre: string
           required_approvals: number
+          telefono: string | null
+          tipo: string | null
         }
         Insert: {
+          celular?: string | null
+          contacto_facturacion?: string | null
           created_at?: string | null
+          direccion?: string | null
+          email?: string | null
           id?: string
-          name: string
+          mail_contacto_facturacion?: string | null
           nit: string
+          nombre: string
           required_approvals?: number
+          telefono?: string | null
+          tipo?: string | null
         }
         Update: {
+          celular?: string | null
+          contacto_facturacion?: string | null
           created_at?: string | null
+          direccion?: string | null
+          email?: string | null
           id?: string
-          name?: string
+          mail_contacto_facturacion?: string | null
           nit?: string
+          nombre?: string
           required_approvals?: number
+          telefono?: string | null
+          tipo?: string | null
         }
         Relationships: []
       }

@@ -1,0 +1,93 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+
+const BUCKET = "invoices";
+const MAX_BYTES = 10 * 1024 * 1024;
+
+type ActionResult = { ok: true } | { error: string };
+
+export async function uploadPurchaseOrder(
+  invoiceId: string,
+  formData: FormData,
+): Promise<ActionResult> {
+  const file = formData.get("file");
+  if (!(file instanceof File) || file.size === 0) {
+    return { error: "Selecciona un archivo PDF" };
+  }
+  if (file.type !== "application/pdf") {
+    return { error: "El archivo debe ser PDF" };
+  }
+  if (file.size > MAX_BYTES) {
+    return { error: "El archivo supera el límite de 10 MB" };
+  }
+
+  const supabase = await createClient();
+  const { data: invoice, error: fetchError } = await supabase
+    .from("invoices")
+    .select("supplier_nit, invoice_number")
+    .eq("id", invoiceId)
+    .maybeSingle();
+  if (fetchError) return { error: fetchError.message };
+  if (!invoice) return { error: "Factura no encontrada" };
+
+  const objectPath = `ordenes-compra/${invoice.supplier_nit}/${invoice.invoice_number}_oc.pdf`;
+  const storedPath = `${BUCKET}/${objectPath}`;
+
+  const admin = createAdminClient();
+  const bytes = new Uint8Array(await file.arrayBuffer());
+
+  const { error: uploadError } = await admin.storage
+    .from(BUCKET)
+    .upload(objectPath, bytes, {
+      contentType: "application/pdf",
+      upsert: true,
+    });
+  if (uploadError) return { error: `Upload falló: ${uploadError.message}` };
+
+  const { error: updateError } = await admin
+    .from("invoices")
+    .update({
+      po_storage_path: storedPath,
+      po_uploaded_at: new Date().toISOString(),
+    })
+    .eq("id", invoiceId);
+  if (updateError) return { error: `Actualización falló: ${updateError.message}` };
+
+  revalidatePath(`/facturas/${invoiceId}`);
+  revalidatePath("/facturas");
+  return { ok: true };
+}
+
+export async function deletePurchaseOrder(
+  invoiceId: string,
+): Promise<ActionResult> {
+  const supabase = await createClient();
+  const { data: invoice, error: fetchError } = await supabase
+    .from("invoices")
+    .select("po_storage_path")
+    .eq("id", invoiceId)
+    .maybeSingle();
+  if (fetchError) return { error: fetchError.message };
+  if (!invoice?.po_storage_path) return { error: "No hay OC asociada" };
+
+  const objectPath = invoice.po_storage_path.replace(/^invoices\//i, "");
+  const admin = createAdminClient();
+
+  const { error: removeError } = await admin.storage
+    .from(BUCKET)
+    .remove([objectPath]);
+  if (removeError) return { error: `Borrado falló: ${removeError.message}` };
+
+  const { error: updateError } = await admin
+    .from("invoices")
+    .update({ po_storage_path: null, po_uploaded_at: null })
+    .eq("id", invoiceId);
+  if (updateError) return { error: updateError.message };
+
+  revalidatePath(`/facturas/${invoiceId}`);
+  revalidatePath("/facturas");
+  return { ok: true };
+}

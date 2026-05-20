@@ -55,7 +55,7 @@ export default async function EditarProveedorPage({
         <h1 className="text-2xl font-semibold tracking-tight">
           Editar proveedor
         </h1>
-        <p className="text-sm text-muted-foreground">{supplier.name}</p>
+        <p className="text-sm text-muted-foreground">{supplier.nombre}</p>
       </div>
       <div className="rounded-lg border bg-white p-6">
         <SupplierForm
@@ -63,7 +63,14 @@ export default async function EditarProveedorPage({
           supplier={{
             id: supplier.id,
             nit: supplier.nit,
-            name: supplier.name,
+            nombre: supplier.nombre,
+            direccion: supplier.direccion,
+            telefono: supplier.telefono,
+            celular: supplier.celular,
+            email: supplier.email,
+            tipo: supplier.tipo,
+            contacto_facturacion: supplier.contacto_facturacion,
+            mail_contacto_facturacion: supplier.mail_contacto_facturacion,
             required_approvals: supplier.required_approvals,
           }}
           approvers={visibleApprovers}

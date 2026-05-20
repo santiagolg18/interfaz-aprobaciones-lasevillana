@@ -16,7 +16,7 @@ import { X } from "lucide-react";
 
 const ALL = "__all__";
 
-type Supplier = { id: string; name: string };
+type Supplier = { id: string; nombre: string };
 
 export function InvoiceFilters({ suppliers }: { suppliers: Supplier[] }) {
   const router = useRouter();
@@ -68,7 +68,7 @@ export function InvoiceFilters({ suppliers }: { suppliers: Supplier[] }) {
             <SelectItem value={ALL}>Todos</SelectItem>
             {suppliers.map((s) => (
               <SelectItem key={s.id} value={s.id}>
-                {s.name}
+                {s.nombre}
               </SelectItem>
             ))}
           </SelectContent>

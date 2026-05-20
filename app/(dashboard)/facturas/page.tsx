@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, Paperclip } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -34,7 +34,7 @@ export default async function FacturasPage({
   let query = supabase
     .from("invoices")
     .select(
-      "id, invoice_number, supplier_id, supplier_name, supplier_nit, total_amount, received_at, status, current_approvals, required_approvals",
+      "id, invoice_number, supplier_id, supplier_name, supplier_nit, total_amount, received_at, status, current_approvals, required_approvals, po_storage_path",
     )
     .order("received_at", { ascending: false });
 
@@ -45,7 +45,7 @@ export default async function FacturasPage({
 
   const [{ data: invoices, error }, { data: suppliers }] = await Promise.all([
     query,
-    supabase.from("suppliers").select("id, name").order("name"),
+    supabase.from("suppliers").select("id, nombre").order("nombre"),
   ]);
 
   return (
@@ -94,8 +94,17 @@ export default async function FacturasPage({
                   className="cursor-pointer hover:bg-neutral-50"
                 >
                   <TableCell className="font-medium">
-                    <Link href={`/facturas/${inv.id}`} className="block">
+                    <Link
+                      href={`/facturas/${inv.id}`}
+                      className="flex items-center gap-1.5"
+                    >
                       {inv.invoice_number}
+                      {inv.po_storage_path ? (
+                        <Paperclip
+                          className="size-3.5 text-muted-foreground"
+                          aria-label="Orden de compra cargada"
+                        />
+                      ) : null}
                     </Link>
                   </TableCell>
                   <TableCell>

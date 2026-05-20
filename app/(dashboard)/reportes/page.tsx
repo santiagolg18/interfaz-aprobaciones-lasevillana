@@ -18,8 +18,8 @@ export default async function ReportesPage({
   const supabase = await createClient();
   const { data: suppliers } = await supabase
     .from("suppliers")
-    .select("id, name")
-    .order("name");
+    .select("id, nombre")
+    .order("nombre");
 
   const reports = [
     {

@@ -7,16 +7,35 @@ import { createClient } from "@/lib/supabase/server";
 type SupplierInput = {
   id?: string;
   nit: string;
-  name: string;
+  nombre: string;
+  direccion: string | null;
+  telefono: string | null;
+  celular: string | null;
+  email: string | null;
+  tipo: string | null;
+  contacto_facturacion: string | null;
+  mail_contacto_facturacion: string | null;
   required_approvals: number;
   approver_ids: string[];
 };
+
+function emptyToNull(v: FormDataEntryValue | null): string | null {
+  const s = String(v ?? "").trim();
+  return s === "" ? null : s;
+}
 
 function parseForm(formData: FormData): SupplierInput {
   return {
     id: (formData.get("id") as string) || undefined,
     nit: String(formData.get("nit") ?? "").trim(),
-    name: String(formData.get("name") ?? "").trim(),
+    nombre: String(formData.get("nombre") ?? "").trim(),
+    direccion: emptyToNull(formData.get("direccion")),
+    telefono: emptyToNull(formData.get("telefono")),
+    celular: emptyToNull(formData.get("celular")),
+    email: emptyToNull(formData.get("email")),
+    tipo: emptyToNull(formData.get("tipo")),
+    contacto_facturacion: emptyToNull(formData.get("contacto_facturacion")),
+    mail_contacto_facturacion: emptyToNull(formData.get("mail_contacto_facturacion")),
     required_approvals: Math.max(
       1,
       parseInt(String(formData.get("required_approvals") ?? "1"), 10) || 1,
@@ -27,7 +46,7 @@ function parseForm(formData: FormData): SupplierInput {
 
 export async function createSupplier(formData: FormData) {
   const input = parseForm(formData);
-  if (!input.nit || !input.name) {
+  if (!input.nit || !input.nombre) {
     redirect(
       `/proveedores/new?error=${encodeURIComponent("NIT y nombre son requeridos")}`,
     );
@@ -38,7 +57,14 @@ export async function createSupplier(formData: FormData) {
     .from("suppliers")
     .insert({
       nit: input.nit,
-      name: input.name,
+      nombre: input.nombre,
+      direccion: input.direccion,
+      telefono: input.telefono,
+      celular: input.celular,
+      email: input.email,
+      tipo: input.tipo,
+      contacto_facturacion: input.contacto_facturacion,
+      mail_contacto_facturacion: input.mail_contacto_facturacion,
       required_approvals: input.required_approvals,
     })
     .select("id")
@@ -63,7 +89,7 @@ export async function createSupplier(formData: FormData) {
 
 export async function updateSupplier(formData: FormData) {
   const input = parseForm(formData);
-  if (!input.id || !input.nit || !input.name) {
+  if (!input.id || !input.nit || !input.nombre) {
     redirect(`/proveedores?error=${encodeURIComponent("Datos inválidos")}`);
   }
 
@@ -72,7 +98,14 @@ export async function updateSupplier(formData: FormData) {
     .from("suppliers")
     .update({
       nit: input.nit,
-      name: input.name,
+      nombre: input.nombre,
+      direccion: input.direccion,
+      telefono: input.telefono,
+      celular: input.celular,
+      email: input.email,
+      tipo: input.tipo,
+      contacto_facturacion: input.contacto_facturacion,
+      mail_contacto_facturacion: input.mail_contacto_facturacion,
       required_approvals: input.required_approvals,
     })
     .eq("id", input.id!);
