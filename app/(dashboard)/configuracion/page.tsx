@@ -54,58 +54,50 @@ export default async function ConfiguracionPage() {
         </div>
       ) : null}
 
-      <div className="rounded-lg border bg-white overflow-hidden shadow-[0_1px_2px_0_rgb(0_0_0/0.03)]">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Usuario</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead className="w-[130px]">Rol</TableHead>
-              <TableHead className="w-[120px]">Estado</TableHead>
-              <TableHead className="w-[120px]">Acceso</TableHead>
-              <TableHead className="w-44 text-right">Acciones</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {(users ?? []).length === 0 ? (
-              <TableRow className="hover:bg-transparent">
-                <TableCell colSpan={6} className="p-0">
-                  <EmptyState
-                    icon={<UserCog />}
-                    title="Aún no hay usuarios"
-                    description="Crea el primer usuario con acceso a la app."
-                    action={
-                      <Button asChild size="sm">
-                        <Link href="/configuracion/new">
-                          <Plus className="size-4" />
-                          Crear el primero
-                        </Link>
-                      </Button>
-                    }
-                  />
-                </TableCell>
-              </TableRow>
-            ) : (
-              (users ?? []).map((u) => (
-                <TableRow key={u.id}>
-                  <TableCell>
-                    <div className="flex items-center gap-3">
-                      <Avatar
-                        name={u.name}
-                        tone={u.is_active ? "primary" : "muted"}
-                      />
-                      <span className="font-medium text-neutral-900">
+      {(users ?? []).length === 0 ? (
+        <div className="rounded-lg border bg-white shadow-[0_1px_2px_0_rgb(0_0_0/0.03)]">
+          <EmptyState
+            icon={<UserCog />}
+            title="Aún no hay usuarios"
+            description="Crea el primer usuario con acceso a la app."
+            action={
+              <Button asChild size="sm">
+                <Link href="/configuracion/new">
+                  <Plus className="size-4" />
+                  Crear el primero
+                </Link>
+              </Button>
+            }
+          />
+        </div>
+      ) : (
+        <>
+          {/* Mobile: cards */}
+          <ul className="md:hidden space-y-2">
+            {(users ?? []).map((u) => (
+              <li
+                key={u.id}
+                className="rounded-lg border bg-white p-4 shadow-[0_1px_2px_0_rgb(0_0_0/0.03)]"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0 flex-1">
+                    <Avatar
+                      name={u.name}
+                      tone={u.is_active ? "primary" : "muted"}
+                    />
+                    <div className="min-w-0">
+                      <div className="font-semibold text-neutral-900 leading-tight truncate">
                         {u.name}
-                      </span>
+                      </div>
+                      <div className="text-xs text-muted-foreground truncate">
+                        {u.email}
+                      </div>
                     </div>
-                  </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    {u.email}
-                  </TableCell>
-                  <TableCell>
-                    <RoleBadge role={u.role} />
-                  </TableCell>
-                  <TableCell>
+                  </div>
+                  <RoleBadge role={u.role} />
+                </div>
+                <div className="mt-3 flex items-center justify-between gap-3 pt-3 border-t">
+                  <div className="flex items-center gap-2">
                     {u.is_active ? (
                       <StatusBadge status="approved" />
                     ) : (
@@ -113,8 +105,6 @@ export default async function ConfiguracionPage() {
                         Inactivo
                       </span>
                     )}
-                  </TableCell>
-                  <TableCell>
                     {u.auth_user_id ? (
                       <Badge variant="secondary">Con cuenta</Badge>
                     ) : (
@@ -126,56 +116,158 @@ export default async function ConfiguracionPage() {
                           variant="outline"
                           className="text-amber-700 border-amber-200 bg-amber-50 hover:bg-amber-100 cursor-pointer"
                         >
-                          Sin cuenta · crear
+                          Sin cuenta
                         </Badge>
                       </Link>
                     )}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex items-center justify-end gap-1">
-                      <Button asChild variant="ghost" size="icon" title="Editar">
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <Button asChild variant="ghost" size="icon" title="Editar">
+                      <Link
+                        href={`/configuracion/${u.id}`}
+                        aria-label={`Editar ${u.name}`}
+                      >
+                        <Pencil className="size-4" />
+                      </Link>
+                    </Button>
+                    {u.auth_user_id ? (
+                      <Button
+                        asChild
+                        variant="ghost"
+                        size="icon"
+                        title="Resetear contraseña"
+                      >
                         <Link
-                          href={`/configuracion/${u.id}`}
-                          aria-label={`Editar ${u.name}`}
+                          href={`/configuracion/${u.id}#reset-password`}
+                          aria-label={`Resetear contraseña de ${u.name}`}
                         >
-                          <Pencil className="size-4" />
+                          <KeyRound className="size-4" />
                         </Link>
                       </Button>
+                    ) : null}
+                    <form action={deleteUser}>
+                      <input type="hidden" name="id" value={u.id} />
+                      <Button
+                        type="submit"
+                        variant="ghost"
+                        size="icon"
+                        title="Eliminar"
+                        className="text-rose-600 hover:bg-rose-50 hover:text-rose-700"
+                      >
+                        <Trash2 className="size-4" />
+                      </Button>
+                    </form>
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ul>
+
+          {/* Desktop: table */}
+          <div className="hidden md:block rounded-lg border bg-white overflow-hidden shadow-[0_1px_2px_0_rgb(0_0_0/0.03)]">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Usuario</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead className="md:w-[130px]">Rol</TableHead>
+                  <TableHead className="md:w-[120px]">Estado</TableHead>
+                  <TableHead className="md:w-[120px]">Acceso</TableHead>
+                  <TableHead className="md:w-44 text-right">Acciones</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {(users ?? []).map((u) => (
+                  <TableRow key={u.id}>
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <Avatar
+                          name={u.name}
+                          tone={u.is_active ? "primary" : "muted"}
+                        />
+                        <span className="font-medium text-neutral-900">
+                          {u.name}
+                        </span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {u.email}
+                    </TableCell>
+                    <TableCell>
+                      <RoleBadge role={u.role} />
+                    </TableCell>
+                    <TableCell>
+                      {u.is_active ? (
+                        <StatusBadge status="approved" />
+                      ) : (
+                        <span className="inline-flex items-center rounded-full bg-neutral-100 px-2.5 py-0.5 text-xs font-medium text-neutral-700 ring-1 ring-inset ring-neutral-200">
+                          Inactivo
+                        </span>
+                      )}
+                    </TableCell>
+                    <TableCell>
                       {u.auth_user_id ? (
-                        <Button
-                          asChild
-                          variant="ghost"
-                          size="icon"
-                          title="Resetear contraseña"
+                        <Badge variant="secondary">Con cuenta</Badge>
+                      ) : (
+                        <Link
+                          href={`/configuracion/${u.id}#create-account`}
+                          title="Crear cuenta de acceso"
                         >
-                          <Link
-                            href={`/configuracion/${u.id}#reset-password`}
-                            aria-label={`Resetear contraseña de ${u.name}`}
+                          <Badge
+                            variant="outline"
+                            className="text-amber-700 border-amber-200 bg-amber-50 hover:bg-amber-100 cursor-pointer"
                           >
-                            <KeyRound className="size-4" />
+                            Sin cuenta · crear
+                          </Badge>
+                        </Link>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        <Button asChild variant="ghost" size="icon" title="Editar">
+                          <Link
+                            href={`/configuracion/${u.id}`}
+                            aria-label={`Editar ${u.name}`}
+                          >
+                            <Pencil className="size-4" />
                           </Link>
                         </Button>
-                      ) : null}
-                      <form action={deleteUser}>
-                        <input type="hidden" name="id" value={u.id} />
-                        <Button
-                          type="submit"
-                          variant="ghost"
-                          size="icon"
-                          title="Eliminar"
-                          className="text-rose-600 hover:bg-rose-50 hover:text-rose-700"
-                        >
-                          <Trash2 className="size-4" />
-                        </Button>
-                      </form>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
+                        {u.auth_user_id ? (
+                          <Button
+                            asChild
+                            variant="ghost"
+                            size="icon"
+                            title="Resetear contraseña"
+                          >
+                            <Link
+                              href={`/configuracion/${u.id}#reset-password`}
+                              aria-label={`Resetear contraseña de ${u.name}`}
+                            >
+                              <KeyRound className="size-4" />
+                            </Link>
+                          </Button>
+                        ) : null}
+                        <form action={deleteUser}>
+                          <input type="hidden" name="id" value={u.id} />
+                          <Button
+                            type="submit"
+                            variant="ghost"
+                            size="icon"
+                            title="Eliminar"
+                            className="text-rose-600 hover:bg-rose-50 hover:text-rose-700"
+                          >
+                            <Trash2 className="size-4" />
+                          </Button>
+                        </form>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </>
+      )}
     </div>
   );
 }

@@ -189,8 +189,8 @@ export default async function DashboardPage({
         </div>
       </div>
 
-      <div className="rounded-lg border bg-white overflow-hidden shadow-[0_1px_2px_0_rgb(0_0_0/0.03)]">
-        <div className="px-4 py-3 border-b">
+      <section className="space-y-2">
+        <div className="px-1">
           <h2 className="text-sm font-semibold text-neutral-900">
             Pendientes más antiguas
           </h2>
@@ -198,72 +198,117 @@ export default async function DashboardPage({
             Facturas aún en estado pendiente, ordenadas por fecha de recepción.
           </p>
         </div>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Número</TableHead>
-              <TableHead>Proveedor</TableHead>
-              <TableHead className="text-right">Monto</TableHead>
-              <TableHead>Recibida</TableHead>
-              <TableHead>Antigüedad</TableHead>
-              <TableHead>Progreso</TableHead>
-              <TableHead>Estado</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {(oldest ?? []).length === 0 ? (
-              <TableRow className="hover:bg-transparent">
-                <TableCell colSpan={7} className="p-0">
-                  <EmptyState
-                    icon={<Inbox />}
-                    title="No hay facturas pendientes"
-                    description="Sin facturas en estado pendiente dentro del rango seleccionado."
-                  />
-                </TableCell>
-              </TableRow>
-            ) : (
-              (oldest ?? []).map((inv) => {
+
+        {(oldest ?? []).length === 0 ? (
+          <div className="rounded-lg border bg-white shadow-[0_1px_2px_0_rgb(0_0_0/0.03)]">
+            <EmptyState
+              icon={<Inbox />}
+              title="No hay facturas pendientes"
+              description="Sin facturas en estado pendiente dentro del rango seleccionado."
+            />
+          </div>
+        ) : (
+          <>
+            {/* Mobile: cards */}
+            <ul className="md:hidden space-y-2">
+              {(oldest ?? []).map((inv) => {
                 const days = daysAgo(inv.received_at);
                 return (
-                  <TableRow
-                    key={inv.id}
-                    className="relative cursor-pointer"
-                  >
-                    <TableCell className="font-medium text-neutral-900">
-                      <Link
-                        href={`/facturas/${inv.id}`}
-                        className="inline-block after:absolute after:inset-0 after:content-[''] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2 rounded-sm"
-                      >
-                        {inv.invoice_number}
-                      </Link>
-                    </TableCell>
-                    <TableCell className="text-sm">{inv.supplier_name}</TableCell>
-                    <TableCell className="text-right">
-                      <Money value={inv.total_amount} />
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {formatDateTime(inv.received_at)}
-                    </TableCell>
-                    <TableCell>
-                      <DaysAgoBadge days={days} />
-                    </TableCell>
-                    <TableCell>
-                      <ApprovalProgress
-                        current={inv.current_approvals}
-                        required={inv.required_approvals}
-                        status={inv.status}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <StatusBadge status={inv.status} />
-                    </TableCell>
-                  </TableRow>
+                  <li key={inv.id}>
+                    <Link
+                      href={`/facturas/${inv.id}`}
+                      className="block rounded-lg border bg-white p-4 shadow-[0_1px_2px_0_rgb(0_0_0/0.03)] active:bg-neutral-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="font-semibold text-neutral-900">
+                            {inv.invoice_number}
+                          </div>
+                          <div className="text-sm text-neutral-700 truncate">
+                            {inv.supplier_name}
+                          </div>
+                        </div>
+                        <DaysAgoBadge days={days} />
+                      </div>
+                      <div className="mt-3 flex items-center justify-between gap-3">
+                        <Money
+                          value={inv.total_amount}
+                          className="text-base font-semibold text-neutral-900"
+                        />
+                        <ApprovalProgress
+                          current={inv.current_approvals}
+                          required={inv.required_approvals}
+                          status={inv.status}
+                        />
+                      </div>
+                      <div className="mt-1 text-xs text-muted-foreground">
+                        {formatDateTime(inv.received_at)}
+                      </div>
+                    </Link>
+                  </li>
                 );
-              })
-            )}
-          </TableBody>
-        </Table>
-      </div>
+              })}
+            </ul>
+
+            {/* Desktop: table */}
+            <div className="hidden md:block rounded-lg border bg-white overflow-hidden shadow-[0_1px_2px_0_rgb(0_0_0/0.03)]">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Número</TableHead>
+                    <TableHead>Proveedor</TableHead>
+                    <TableHead className="text-right">Monto</TableHead>
+                    <TableHead>Recibida</TableHead>
+                    <TableHead>Antigüedad</TableHead>
+                    <TableHead>Progreso</TableHead>
+                    <TableHead>Estado</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {(oldest ?? []).map((inv) => {
+                    const days = daysAgo(inv.received_at);
+                    return (
+                      <TableRow
+                        key={inv.id}
+                        className="relative cursor-pointer"
+                      >
+                        <TableCell className="font-medium text-neutral-900 whitespace-nowrap">
+                          <Link
+                            href={`/facturas/${inv.id}`}
+                            className="inline-block after:absolute after:inset-0 after:content-[''] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2 rounded-sm"
+                          >
+                            {inv.invoice_number}
+                          </Link>
+                        </TableCell>
+                        <TableCell className="text-sm">{inv.supplier_name}</TableCell>
+                        <TableCell className="text-right whitespace-nowrap">
+                          <Money value={inv.total_amount} />
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
+                          {formatDateTime(inv.received_at)}
+                        </TableCell>
+                        <TableCell>
+                          <DaysAgoBadge days={days} />
+                        </TableCell>
+                        <TableCell>
+                          <ApprovalProgress
+                            current={inv.current_approvals}
+                            required={inv.required_approvals}
+                            status={inv.status}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <StatusBadge status={inv.status} />
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          </>
+        )}
+      </section>
     </div>
   );
 }

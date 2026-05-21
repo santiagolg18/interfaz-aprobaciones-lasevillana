@@ -165,132 +165,202 @@ export default async function AprobadoresPage({
         </div>
       ) : null}
 
-      <div className="rounded-lg border bg-white overflow-hidden shadow-[0_1px_2px_0_rgb(0_0_0/0.03)]">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Aprobador</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead className="w-[140px] text-center">Proveedores</TableHead>
-              <TableHead className="w-[120px]">Estado</TableHead>
-              <TableHead className="w-44 text-right">Acciones</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filtered.length === 0 ? (
-              <TableRow className="hover:bg-transparent">
-                <TableCell colSpan={5} className="p-0">
-                  <EmptyState
-                    icon={<Users />}
-                    title={
-                      hasFilters ? "Sin resultados" : "Aún no hay aprobadores"
-                    }
-                    description={
-                      hasFilters
-                        ? "No hay aprobadores que coincidan con los filtros. Prueba con otro término o limpia los filtros."
-                        : isAdmin
-                          ? "Crea tu primer aprobador desde Configuración."
-                          : "Aún no hay aprobadores. Pídele al admin que cree uno desde Configuración."
-                    }
-                    action={
-                      hasFilters || !isAdmin ? undefined : (
-                        <Button asChild size="sm">
-                          <Link href="/configuracion/new">
-                            <Settings className="size-4" />
-                            Ir a Configuración
-                          </Link>
-                        </Button>
-                      )
-                    }
-                  />
-                </TableCell>
-              </TableRow>
-            ) : (
-              filtered.map((a) => (
-                <TableRow key={a.id}>
-                  <TableCell>
-                    <div className="flex items-center gap-3">
-                      <Avatar
-                        name={a.name}
-                        tone={a.is_active ? "primary" : "muted"}
-                      />
-                      <Link
-                        href={`/aprobadores/${a.id}`}
-                        className="font-medium leading-tight text-neutral-900 hover:underline"
-                      >
+      {filtered.length === 0 ? (
+        <div className="rounded-lg border bg-white shadow-[0_1px_2px_0_rgb(0_0_0/0.03)]">
+          <EmptyState
+            icon={<Users />}
+            title={hasFilters ? "Sin resultados" : "Aún no hay aprobadores"}
+            description={
+              hasFilters
+                ? "No hay aprobadores que coincidan con los filtros. Prueba con otro término o limpia los filtros."
+                : isAdmin
+                  ? "Crea tu primer aprobador desde Configuración."
+                  : "Aún no hay aprobadores. Pídele al admin que cree uno desde Configuración."
+            }
+            action={
+              hasFilters || !isAdmin ? undefined : (
+                <Button asChild size="sm">
+                  <Link href="/configuracion/new">
+                    <Settings className="size-4" />
+                    Ir a Configuración
+                  </Link>
+                </Button>
+              )
+            }
+          />
+        </div>
+      ) : (
+        <>
+          {/* Mobile: cards */}
+          <ul className="md:hidden space-y-2">
+            {filtered.map((a) => (
+              <li
+                key={a.id}
+                className="rounded-lg border bg-white p-4 shadow-[0_1px_2px_0_rgb(0_0_0/0.03)]"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <Link
+                    href={`/aprobadores/${a.id}`}
+                    className="flex items-center gap-3 min-w-0 flex-1"
+                  >
+                    <Avatar
+                      name={a.name}
+                      tone={a.is_active ? "primary" : "muted"}
+                    />
+                    <div className="min-w-0">
+                      <div className="font-semibold text-neutral-900 leading-tight truncate">
                         {a.name}
-                      </Link>
+                      </div>
+                      <div className="text-xs text-muted-foreground truncate">
+                        {a.email}
+                      </div>
                     </div>
-                  </TableCell>
-                  <TableCell>
-                    <a
-                      href={`mailto:${a.email}`}
-                      className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground hover:underline"
-                    >
-                      <Mail className="size-3.5" />
-                      {a.email}
-                    </a>
-                  </TableCell>
-                  <TableCell className="text-center">
+                  </Link>
+                  {a.is_active ? (
+                    <StatusBadge status="approved" />
+                  ) : (
+                    <span className="inline-flex items-center rounded-full bg-neutral-100 px-2.5 py-0.5 text-xs font-medium text-neutral-700 ring-1 ring-inset ring-neutral-200 shrink-0">
+                      Inactivo
+                    </span>
+                  )}
+                </div>
+                <div className="mt-3 flex items-center justify-between gap-3 pt-3 border-t">
+                  <div className="text-xs text-muted-foreground">
+                    Proveedores:{" "}
                     {a.rulesCount > 0 ? (
                       <Link
                         href={`/proveedores?approver=${a.id}`}
-                        title={`Ver proveedores asignados a ${a.name}`}
+                        className="font-medium text-neutral-900 hover:underline tabular-nums"
                       >
-                        <Badge
-                          variant="secondary"
-                          className="tabular-nums hover:bg-neutral-200"
-                        >
-                          {a.rulesCount}
-                        </Badge>
+                        {a.rulesCount}
                       </Link>
                     ) : (
-                      <Badge
-                        variant="outline"
-                        className="text-amber-700 border-amber-200 bg-amber-50"
-                      >
-                        Sin asignar
-                      </Badge>
+                      <span className="font-medium text-amber-700">Sin asignar</span>
                     )}
-                  </TableCell>
-                  <TableCell>
-                    {a.is_active ? (
-                      <StatusBadge status="approved" />
-                    ) : (
-                      <span className="inline-flex items-center rounded-full bg-neutral-100 px-2.5 py-0.5 text-xs font-medium text-neutral-700 ring-1 ring-inset ring-neutral-200">
-                        Inactivo
-                      </span>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {isAdmin ? (
-                      <div className="flex items-center justify-end gap-1">
-                        <ApproverToggleButton
-                          id={a.id}
-                          name={a.name}
-                          isActive={!!a.is_active}
-                          assignedCount={a.rulesCount}
-                          action={toggleApproverActive}
-                        />
-                        <Button asChild variant="ghost" size="icon">
-                          <Link
-                            href={`/aprobadores/${a.id}`}
-                            aria-label={`Editar ${a.name}`}
-                          >
-                            <Pencil className="size-4" />
-                          </Link>
-                        </Button>
-                      </div>
-                    ) : (
-                      <span className="text-xs text-muted-foreground">—</span>
-                    )}
-                  </TableCell>
+                  </div>
+                  {isAdmin ? (
+                    <div className="flex items-center gap-1 shrink-0">
+                      <ApproverToggleButton
+                        id={a.id}
+                        name={a.name}
+                        isActive={!!a.is_active}
+                        assignedCount={a.rulesCount}
+                        action={toggleApproverActive}
+                      />
+                      <Button asChild variant="ghost" size="icon">
+                        <Link
+                          href={`/aprobadores/${a.id}`}
+                          aria-label={`Editar ${a.name}`}
+                        >
+                          <Pencil className="size-4" />
+                        </Link>
+                      </Button>
+                    </div>
+                  ) : null}
+                </div>
+              </li>
+            ))}
+          </ul>
+
+          {/* Desktop: table */}
+          <div className="hidden md:block rounded-lg border bg-white overflow-hidden shadow-[0_1px_2px_0_rgb(0_0_0/0.03)]">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Aprobador</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead className="md:w-[140px] text-center">Proveedores</TableHead>
+                  <TableHead className="md:w-[120px]">Estado</TableHead>
+                  <TableHead className="md:w-44 text-right">Acciones</TableHead>
                 </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
+              </TableHeader>
+              <TableBody>
+                {filtered.map((a) => (
+                  <TableRow key={a.id}>
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <Avatar
+                          name={a.name}
+                          tone={a.is_active ? "primary" : "muted"}
+                        />
+                        <Link
+                          href={`/aprobadores/${a.id}`}
+                          className="font-medium leading-tight text-neutral-900 hover:underline"
+                        >
+                          {a.name}
+                        </Link>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <a
+                        href={`mailto:${a.email}`}
+                        className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground hover:underline"
+                      >
+                        <Mail className="size-3.5" />
+                        {a.email}
+                      </a>
+                    </TableCell>
+                    <TableCell className="text-center">
+                      {a.rulesCount > 0 ? (
+                        <Link
+                          href={`/proveedores?approver=${a.id}`}
+                          title={`Ver proveedores asignados a ${a.name}`}
+                        >
+                          <Badge
+                            variant="secondary"
+                            className="tabular-nums hover:bg-neutral-200"
+                          >
+                            {a.rulesCount}
+                          </Badge>
+                        </Link>
+                      ) : (
+                        <Badge
+                          variant="outline"
+                          className="text-amber-700 border-amber-200 bg-amber-50"
+                        >
+                          Sin asignar
+                        </Badge>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {a.is_active ? (
+                        <StatusBadge status="approved" />
+                      ) : (
+                        <span className="inline-flex items-center rounded-full bg-neutral-100 px-2.5 py-0.5 text-xs font-medium text-neutral-700 ring-1 ring-inset ring-neutral-200">
+                          Inactivo
+                        </span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {isAdmin ? (
+                        <div className="flex items-center justify-end gap-1">
+                          <ApproverToggleButton
+                            id={a.id}
+                            name={a.name}
+                            isActive={!!a.is_active}
+                            assignedCount={a.rulesCount}
+                            action={toggleApproverActive}
+                          />
+                          <Button asChild variant="ghost" size="icon">
+                            <Link
+                              href={`/aprobadores/${a.id}`}
+                              aria-label={`Editar ${a.name}`}
+                            >
+                              <Pencil className="size-4" />
+                            </Link>
+                          </Button>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </>
+      )}
     </div>
   );
 }

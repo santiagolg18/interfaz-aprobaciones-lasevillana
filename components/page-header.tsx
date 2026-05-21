@@ -34,7 +34,7 @@ export function PageHeader({
             </Link>
           </Button>
         ) : null}
-        <h1 className="text-2xl font-semibold tracking-tight text-neutral-900">
+        <h1 className="text-xl sm:text-2xl font-semibold tracking-tight text-neutral-900">
           {title}
         </h1>
         {description ? (
@@ -42,7 +42,7 @@ export function PageHeader({
         ) : null}
       </div>
       {actions ? (
-        <div className="flex items-center gap-2 shrink-0">{actions}</div>
+        <div className="flex items-center flex-wrap gap-2">{actions}</div>
       ) : null}
     </div>
   );

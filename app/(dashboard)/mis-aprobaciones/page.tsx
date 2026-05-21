@@ -78,115 +78,192 @@ export default async function MisAprobacionesPage() {
         />
       </div>
 
-      <div className="rounded-lg border bg-white overflow-hidden shadow-[0_1px_2px_0_rgb(0_0_0/0.03)]">
-        <div className="px-4 py-3 border-b">
-          <h2 className="text-sm font-semibold text-neutral-900">
-            Pendientes por aprobar
-          </h2>
-        </div>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Número</TableHead>
-              <TableHead>Proveedor</TableHead>
-              <TableHead className="text-right">Monto</TableHead>
-              <TableHead>Recibida</TableHead>
-              <TableHead>Estado</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {pendingRows.length === 0 ? (
-              <TableRow className="hover:bg-transparent">
-                <TableCell colSpan={5} className="p-0">
-                  <EmptyState
-                    icon={<Inbox />}
-                    title="Nada pendiente"
-                    description="Cuando una factura te sea asignada aparecerá aquí."
-                  />
-                </TableCell>
-              </TableRow>
-            ) : (
-              pendingRows.map((r) => {
-                const inv = r.invoices!;
-                return (
-                  <TableRow key={r.id} className="relative cursor-pointer">
-                    <TableCell className="font-medium text-neutral-900">
-                      <Link
-                        href={`/facturas/${inv.id}`}
-                        className="after:absolute after:inset-0 after:content-[''] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2 rounded-sm"
-                      >
-                        {inv.invoice_number}
-                      </Link>
-                    </TableCell>
-                    <TableCell>
-                      <div className="text-sm">{inv.supplier_name}</div>
-                      <div className="text-xs text-muted-foreground tabular-nums">
-                        NIT {inv.supplier_nit}
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Money value={inv.total_amount} />
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {formatDateTime(inv.received_at)}
-                    </TableCell>
-                    <TableCell>
-                      <StatusBadge status={inv.status} />
-                    </TableCell>
-                  </TableRow>
-                );
-              })
-            )}
-          </TableBody>
-        </Table>
-      </div>
-
-      {historyRows.length > 0 ? (
-        <div className="rounded-lg border bg-white overflow-hidden shadow-[0_1px_2px_0_rgb(0_0_0/0.03)]">
-          <div className="px-4 py-3 border-b">
-            <h2 className="text-sm font-semibold text-neutral-900">
-              Mi historial reciente
-            </h2>
+      <section className="space-y-2">
+        <h2 className="text-sm font-semibold text-neutral-900 px-1">
+          Pendientes por aprobar
+        </h2>
+        {pendingRows.length === 0 ? (
+          <div className="rounded-lg border bg-white shadow-[0_1px_2px_0_rgb(0_0_0/0.03)]">
+            <EmptyState
+              icon={<Inbox />}
+              title="Nada pendiente"
+              description="Cuando una factura te sea asignada aparecerá aquí."
+            />
           </div>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Número</TableHead>
-                <TableHead>Proveedor</TableHead>
-                <TableHead className="text-right">Monto</TableHead>
-                <TableHead>Decisión</TableHead>
-                <TableHead>Fecha</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {historyRows.map((r) => {
+        ) : (
+          <>
+            {/* Mobile: cards */}
+            <ul className="md:hidden space-y-2">
+              {pendingRows.map((r) => {
                 const inv = r.invoices!;
                 return (
-                  <TableRow key={r.id} className="relative cursor-pointer">
-                    <TableCell className="font-medium text-neutral-900">
-                      <Link
-                        href={`/facturas/${inv.id}`}
-                        className="after:absolute after:inset-0 after:content-[''] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2 rounded-sm"
-                      >
-                        {inv.invoice_number}
-                      </Link>
-                    </TableCell>
-                    <TableCell className="text-sm">{inv.supplier_name}</TableCell>
-                    <TableCell className="text-right">
-                      <Money value={inv.total_amount} />
-                    </TableCell>
-                    <TableCell>
-                      <StatusBadge status={r.status} />
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {formatDateTime(r.approved_at)}
-                    </TableCell>
-                  </TableRow>
+                  <li key={r.id}>
+                    <Link
+                      href={`/facturas/${inv.id}`}
+                      className="block rounded-lg border bg-white p-4 shadow-[0_1px_2px_0_rgb(0_0_0/0.03)] active:bg-neutral-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="font-semibold text-neutral-900">
+                            {inv.invoice_number}
+                          </div>
+                          <div className="text-sm text-neutral-700 truncate">
+                            {inv.supplier_name}
+                          </div>
+                          <div className="text-xs text-muted-foreground tabular-nums">
+                            NIT {inv.supplier_nit}
+                          </div>
+                        </div>
+                        <StatusBadge status={inv.status} />
+                      </div>
+                      <div className="mt-3 flex items-center justify-between gap-3">
+                        <Money
+                          value={inv.total_amount}
+                          className="text-base font-semibold text-neutral-900"
+                        />
+                        <div className="text-xs text-muted-foreground">
+                          {formatDateTime(inv.received_at)}
+                        </div>
+                      </div>
+                    </Link>
+                  </li>
                 );
               })}
-            </TableBody>
-          </Table>
-        </div>
+            </ul>
+
+            {/* Desktop: table */}
+            <div className="hidden md:block rounded-lg border bg-white overflow-hidden shadow-[0_1px_2px_0_rgb(0_0_0/0.03)]">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Número</TableHead>
+                    <TableHead>Proveedor</TableHead>
+                    <TableHead className="text-right">Monto</TableHead>
+                    <TableHead>Recibida</TableHead>
+                    <TableHead>Estado</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {pendingRows.map((r) => {
+                    const inv = r.invoices!;
+                    return (
+                      <TableRow key={r.id} className="relative cursor-pointer">
+                        <TableCell className="font-medium text-neutral-900 whitespace-nowrap">
+                          <Link
+                            href={`/facturas/${inv.id}`}
+                            className="after:absolute after:inset-0 after:content-[''] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2 rounded-sm"
+                          >
+                            {inv.invoice_number}
+                          </Link>
+                        </TableCell>
+                        <TableCell>
+                          <div className="text-sm">{inv.supplier_name}</div>
+                          <div className="text-xs text-muted-foreground tabular-nums">
+                            NIT {inv.supplier_nit}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-right whitespace-nowrap">
+                          <Money value={inv.total_amount} />
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
+                          {formatDateTime(inv.received_at)}
+                        </TableCell>
+                        <TableCell>
+                          <StatusBadge status={inv.status} />
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          </>
+        )}
+      </section>
+
+      {historyRows.length > 0 ? (
+        <section className="space-y-2">
+          <h2 className="text-sm font-semibold text-neutral-900 px-1">
+            Mi historial reciente
+          </h2>
+          {/* Mobile: cards */}
+          <ul className="md:hidden space-y-2">
+            {historyRows.map((r) => {
+              const inv = r.invoices!;
+              return (
+                <li key={r.id}>
+                  <Link
+                    href={`/facturas/${inv.id}`}
+                    className="block rounded-lg border bg-white p-4 shadow-[0_1px_2px_0_rgb(0_0_0/0.03)] active:bg-neutral-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="font-semibold text-neutral-900">
+                          {inv.invoice_number}
+                        </div>
+                        <div className="text-sm text-neutral-700 truncate">
+                          {inv.supplier_name}
+                        </div>
+                      </div>
+                      <StatusBadge status={r.status} />
+                    </div>
+                    <div className="mt-3 flex items-center justify-between gap-3">
+                      <Money
+                        value={inv.total_amount}
+                        className="text-base font-semibold text-neutral-900"
+                      />
+                      <div className="text-xs text-muted-foreground">
+                        {formatDateTime(r.approved_at)}
+                      </div>
+                    </div>
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+
+          {/* Desktop: table */}
+          <div className="hidden md:block rounded-lg border bg-white overflow-hidden shadow-[0_1px_2px_0_rgb(0_0_0/0.03)]">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Número</TableHead>
+                  <TableHead>Proveedor</TableHead>
+                  <TableHead className="text-right">Monto</TableHead>
+                  <TableHead>Decisión</TableHead>
+                  <TableHead>Fecha</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {historyRows.map((r) => {
+                  const inv = r.invoices!;
+                  return (
+                    <TableRow key={r.id} className="relative cursor-pointer">
+                      <TableCell className="font-medium text-neutral-900 whitespace-nowrap">
+                        <Link
+                          href={`/facturas/${inv.id}`}
+                          className="after:absolute after:inset-0 after:content-[''] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2 rounded-sm"
+                        >
+                          {inv.invoice_number}
+                        </Link>
+                      </TableCell>
+                      <TableCell className="text-sm">{inv.supplier_name}</TableCell>
+                      <TableCell className="text-right whitespace-nowrap">
+                        <Money value={inv.total_amount} />
+                      </TableCell>
+                      <TableCell>
+                        <StatusBadge status={r.status} />
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
+                        {formatDateTime(r.approved_at)}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
+        </section>
       ) : null}
     </div>
   );

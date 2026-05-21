@@ -33,8 +33,8 @@ export function Pagination({
   const canNext = page < totalPages;
 
   return (
-    <div className="flex items-center justify-between gap-3 px-2 py-3 text-sm text-muted-foreground">
-      <div className="tabular-nums">
+    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 px-2 py-3 text-sm text-muted-foreground">
+      <div className="tabular-nums text-center sm:text-left">
         {total === 0 ? (
           "Sin resultados"
         ) : (
@@ -48,13 +48,14 @@ export function Pagination({
         )}
       </div>
 
-      <div className="flex items-center gap-1">
+      <div className="flex items-center justify-center gap-1">
         <Button
           asChild={canPrev}
           variant="ghost"
           size="icon"
           disabled={!canPrev}
           aria-label="Primera página"
+          className="hidden sm:inline-flex"
         >
           {canPrev ? (
             <Link href={urlForPage(1)} scroll={false}>
@@ -108,6 +109,7 @@ export function Pagination({
           size="icon"
           disabled={!canNext}
           aria-label="Última página"
+          className="hidden sm:inline-flex"
         >
           {canNext ? (
             <Link href={urlForPage(totalPages)} scroll={false}>

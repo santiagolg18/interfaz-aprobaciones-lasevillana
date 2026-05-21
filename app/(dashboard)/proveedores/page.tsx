@@ -200,144 +200,227 @@ export default async function ProveedoresPage({
         </div>
       ) : null}
 
-      <div className="rounded-lg border bg-white overflow-hidden shadow-[0_1px_2px_0_rgb(0_0_0/0.03)]">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-[140px]">NIT</TableHead>
-              <TableHead>Proveedor</TableHead>
-              <TableHead className="w-[140px]">Tipo</TableHead>
-              <TableHead className="w-[120px] text-center">Aprobaciones</TableHead>
-              <TableHead className="w-[120px] text-center">Aprobadores</TableHead>
-              <TableHead className="w-32 text-right">Acciones</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filtered.length === 0 ? (
-              <TableRow className="hover:bg-transparent">
-                <TableCell colSpan={6} className="p-0">
-                  <EmptyState
-                    icon={<Building2 />}
-                    title={
-                      hasFilters
-                        ? "Sin resultados"
-                        : "Aún no hay proveedores"
-                    }
-                    description={
-                      hasFilters
-                        ? "No hay proveedores que coincidan con los filtros. Prueba con otro término o limpia los filtros."
-                        : "Empieza creando tu primer proveedor para asignar reglas de aprobación."
-                    }
-                    action={
-                      hasFilters ? undefined : (
-                        <Button asChild size="sm">
-                          <Link href="/proveedores/new">
-                            <Plus className="size-4" />
-                            Crear el primero
-                          </Link>
-                        </Button>
-                      )
-                    }
-                  />
-                </TableCell>
-              </TableRow>
-            ) : (
-              filtered.map((s) => {
-                const rulesCount = Array.isArray(s.approval_rules)
-                  ? (s.approval_rules[0]?.count ?? 0)
-                  : 0;
-                const phone = s.celular || s.telefono;
-                return (
-                  <TableRow key={s.id}>
-                    <TableCell className="font-mono text-sm tabular-nums text-neutral-700">
-                      {s.nit}
-                    </TableCell>
-                    <TableCell>
-                      <Link
-                        href={`/proveedores/${s.id}`}
-                        className="block hover:underline"
-                      >
-                        <div className="font-medium leading-tight">
-                          {s.nombre}
-                        </div>
-                        {(s.email || phone) && (
-                          <div className="mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
-                            {s.email && (
-                              <span className="inline-flex items-center gap-1">
-                                <Mail className="size-3" />
-                                {s.email}
-                              </span>
-                            )}
-                            {phone && phone !== "0" && (
-                              <span className="inline-flex items-center gap-1">
-                                <Phone className="size-3" />
-                                {phone}
-                              </span>
-                            )}
-                          </div>
-                        )}
-                      </Link>
-                    </TableCell>
-                    <TableCell>
-                      <TipoBadge tipo={s.tipo} />
-                    </TableCell>
-                    <TableCell className="text-center tabular-nums">
-                      {s.required_approvals}
-                    </TableCell>
-                    <TableCell className="text-center">
-                      {rulesCount > 0 ? (
-                        <Badge variant="secondary" className="tabular-nums">
-                          {rulesCount}
-                        </Badge>
-                      ) : (
-                        <Badge
-                          variant="outline"
-                          className="text-amber-700 border-amber-200 bg-amber-50"
-                        >
-                          Sin asignar
-                        </Badge>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        <Button
-                          asChild
-                          variant="ghost"
-                          size="icon"
-                          aria-label={`Editar ${s.nombre}`}
-                        >
-                          <Link href={`/proveedores/${s.id}`}>
-                            <Pencil className="size-4" />
-                          </Link>
-                        </Button>
-                        <DeleteSupplierButton
-                          id={s.id}
-                          nombre={s.nombre}
-                          action={deleteSupplier}
-                        />
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                );
-              })
-            )}
-          </TableBody>
-        </Table>
-
-        <div className="border-t">
-          <Pagination
-            basePath="/proveedores"
-            page={page}
-            pageSize={PAGE_SIZE}
-            total={totalFiltered}
-            searchParams={{
-              q: q || undefined,
-              tipo: tipo || undefined,
-              approvers: approversFilter || undefined,
-              approver: approverId || undefined,
-            }}
+      {filtered.length === 0 ? (
+        <div className="rounded-lg border bg-white shadow-[0_1px_2px_0_rgb(0_0_0/0.03)]">
+          <EmptyState
+            icon={<Building2 />}
+            title={hasFilters ? "Sin resultados" : "Aún no hay proveedores"}
+            description={
+              hasFilters
+                ? "No hay proveedores que coincidan con los filtros. Prueba con otro término o limpia los filtros."
+                : "Empieza creando tu primer proveedor para asignar reglas de aprobación."
+            }
+            action={
+              hasFilters ? undefined : (
+                <Button asChild size="sm">
+                  <Link href="/proveedores/new">
+                    <Plus className="size-4" />
+                    Crear el primero
+                  </Link>
+                </Button>
+              )
+            }
           />
         </div>
+      ) : (
+        <>
+          {/* Mobile: cards */}
+          <ul className="md:hidden space-y-2">
+            {filtered.map((s) => {
+              const rulesCount = Array.isArray(s.approval_rules)
+                ? (s.approval_rules[0]?.count ?? 0)
+                : 0;
+              const phone = s.celular || s.telefono;
+              return (
+                <li
+                  key={s.id}
+                  className="rounded-lg border bg-white p-4 shadow-[0_1px_2px_0_rgb(0_0_0/0.03)]"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <Link
+                      href={`/proveedores/${s.id}`}
+                      className="min-w-0 flex-1"
+                    >
+                      <div className="font-semibold text-neutral-900 leading-tight truncate">
+                        {s.nombre}
+                      </div>
+                      <div className="text-xs font-mono tabular-nums text-muted-foreground mt-0.5">
+                        NIT {s.nit}
+                      </div>
+                    </Link>
+                    <TipoBadge tipo={s.tipo} />
+                  </div>
+                  {(s.email || phone) && (
+                    <div className="mt-2 flex flex-col gap-1 text-xs text-muted-foreground">
+                      {s.email && (
+                        <span className="inline-flex items-center gap-1 truncate">
+                          <Mail className="size-3 shrink-0" />
+                          <span className="truncate">{s.email}</span>
+                        </span>
+                      )}
+                      {phone && phone !== "0" && (
+                        <span className="inline-flex items-center gap-1">
+                          <Phone className="size-3 shrink-0" />
+                          {phone}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                  <div className="mt-3 flex items-center justify-between gap-3 pt-3 border-t">
+                    <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                      <span>
+                        Aprobaciones:{" "}
+                        <span className="font-medium text-neutral-900 tabular-nums">
+                          {s.required_approvals}
+                        </span>
+                      </span>
+                      <span>
+                        Aprobadores:{" "}
+                        {rulesCount > 0 ? (
+                          <span className="font-medium text-neutral-900 tabular-nums">
+                            {rulesCount}
+                          </span>
+                        ) : (
+                          <span className="font-medium text-amber-700">
+                            Sin asignar
+                          </span>
+                        )}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <Button
+                        asChild
+                        variant="ghost"
+                        size="icon"
+                        aria-label={`Editar ${s.nombre}`}
+                      >
+                        <Link href={`/proveedores/${s.id}`}>
+                          <Pencil className="size-4" />
+                        </Link>
+                      </Button>
+                      <DeleteSupplierButton
+                        id={s.id}
+                        nombre={s.nombre}
+                        action={deleteSupplier}
+                      />
+                    </div>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+
+          {/* Desktop: table */}
+          <div className="hidden md:block rounded-lg border bg-white overflow-hidden shadow-[0_1px_2px_0_rgb(0_0_0/0.03)]">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="md:w-[140px]">NIT</TableHead>
+                  <TableHead>Proveedor</TableHead>
+                  <TableHead className="md:w-[140px]">Tipo</TableHead>
+                  <TableHead className="md:w-[120px] text-center">Aprobaciones</TableHead>
+                  <TableHead className="md:w-[120px] text-center">Aprobadores</TableHead>
+                  <TableHead className="md:w-32 text-right">Acciones</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filtered.map((s) => {
+                  const rulesCount = Array.isArray(s.approval_rules)
+                    ? (s.approval_rules[0]?.count ?? 0)
+                    : 0;
+                  const phone = s.celular || s.telefono;
+                  return (
+                    <TableRow key={s.id}>
+                      <TableCell className="font-mono text-sm tabular-nums text-neutral-700 whitespace-nowrap">
+                        {s.nit}
+                      </TableCell>
+                      <TableCell>
+                        <Link
+                          href={`/proveedores/${s.id}`}
+                          className="block hover:underline"
+                        >
+                          <div className="font-medium leading-tight">
+                            {s.nombre}
+                          </div>
+                          {(s.email || phone) && (
+                            <div className="mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
+                              {s.email && (
+                                <span className="inline-flex items-center gap-1">
+                                  <Mail className="size-3" />
+                                  {s.email}
+                                </span>
+                              )}
+                              {phone && phone !== "0" && (
+                                <span className="inline-flex items-center gap-1">
+                                  <Phone className="size-3" />
+                                  {phone}
+                                </span>
+                              )}
+                            </div>
+                          )}
+                        </Link>
+                      </TableCell>
+                      <TableCell>
+                        <TipoBadge tipo={s.tipo} />
+                      </TableCell>
+                      <TableCell className="text-center tabular-nums">
+                        {s.required_approvals}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        {rulesCount > 0 ? (
+                          <Badge variant="secondary" className="tabular-nums">
+                            {rulesCount}
+                          </Badge>
+                        ) : (
+                          <Badge
+                            variant="outline"
+                            className="text-amber-700 border-amber-200 bg-amber-50"
+                          >
+                            Sin asignar
+                          </Badge>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          <Button
+                            asChild
+                            variant="ghost"
+                            size="icon"
+                            aria-label={`Editar ${s.nombre}`}
+                          >
+                            <Link href={`/proveedores/${s.id}`}>
+                              <Pencil className="size-4" />
+                            </Link>
+                          </Button>
+                          <DeleteSupplierButton
+                            id={s.id}
+                            nombre={s.nombre}
+                            action={deleteSupplier}
+                          />
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
+        </>
+      )}
+
+      <div className="rounded-lg border bg-white shadow-[0_1px_2px_0_rgb(0_0_0/0.03)]">
+        <Pagination
+          basePath="/proveedores"
+          page={page}
+          pageSize={PAGE_SIZE}
+          total={totalFiltered}
+          searchParams={{
+            q: q || undefined,
+            tipo: tipo || undefined,
+            approvers: approversFilter || undefined,
+            approver: approverId || undefined,
+          }}
+        />
       </div>
     </div>
   );

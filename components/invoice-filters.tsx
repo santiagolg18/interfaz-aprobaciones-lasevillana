@@ -36,7 +36,7 @@ export function InvoiceFilters({ suppliers }: { suppliers: Supplier[] }) {
   const hasAny = ["status", "supplier_id", "from", "to"].some((k) => sp.get(k));
 
   return (
-    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_180px_180px_auto] lg:items-end">
+    <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_180px_180px_auto] lg:items-end">
       <div className="space-y-1.5">
         <Label className="text-sm font-medium">Estado</Label>
         <Select

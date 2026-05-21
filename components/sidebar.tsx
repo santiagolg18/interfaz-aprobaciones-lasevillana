@@ -57,7 +57,7 @@ function NavLinks({ nav, onNavigate }: { nav: NavItem[]; onNavigate?: () => void
             onClick={onNavigate}
             aria-current={active ? "page" : undefined}
             className={cn(
-              "relative flex items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+              "relative flex items-center gap-2.5 rounded-md px-3 py-2 min-h-11 lg:min-h-0 text-sm font-medium transition-colors",
               "before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-[3px] before:rounded-r-full before:transition-colors",
               active
                 ? "bg-primary/10 text-primary before:bg-primary"
@@ -163,7 +163,7 @@ export function Sidebar({
       </aside>
 
       {/* Mobile / tablet */}
-      <header className="lg:hidden flex h-14 items-center justify-between border-b bg-[#111111] px-4 sticky top-0 z-40">
+      <header className="lg:hidden flex h-14 items-center justify-between border-b bg-[#111111] px-4 sticky top-0 z-40 pt-[env(safe-area-inset-top)]">
         <Image
           src={LOGO_URL}
           alt="La Sevillana"
@@ -183,7 +183,7 @@ export function Sidebar({
           >
             <Menu className="size-5" />
           </SheetTrigger>
-          <SheetContent side="left" className="w-72 p-0">
+          <SheetContent side="left" className="w-[85vw] max-w-72 p-0">
             <SheetTitle className="sr-only">Navegación</SheetTitle>
             <SidebarBody userEmail={userEmail} role={role} />
           </SheetContent>

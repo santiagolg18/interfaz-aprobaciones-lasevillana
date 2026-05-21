@@ -164,7 +164,7 @@ export function InvoiceDocuments({
 
       <div className="p-3">
         {mode === "compare" ? (
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
             {invoicePane}
             {poPane}
           </div>
@@ -221,7 +221,7 @@ function SegmentedControl({
             disabled={!item.enabled}
             title={item.hint}
             className={cn(
-              "inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
+              "inline-flex items-center gap-1.5 rounded-md px-3 min-h-9 text-xs font-medium transition-colors",
               "disabled:opacity-40 disabled:cursor-not-allowed",
               active
                 ? "bg-white text-neutral-900 shadow-[0_1px_2px_0_rgb(0_0_0/0.06)]"

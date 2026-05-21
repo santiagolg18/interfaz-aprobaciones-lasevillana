@@ -136,85 +136,133 @@ export default async function FacturasPage({
         ) : null}
       </div>
 
-      <div className="rounded-lg border bg-white overflow-hidden shadow-[0_1px_2px_0_rgb(0_0_0/0.03)]">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Número</TableHead>
-              <TableHead>Proveedor</TableHead>
-              <TableHead className="text-right">Monto</TableHead>
-              <TableHead>Recibida</TableHead>
-              <TableHead>Estado</TableHead>
-              <TableHead>Progreso</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {total === 0 ? (
-              <TableRow className="hover:bg-transparent">
-                <TableCell colSpan={6} className="p-0">
-                  <EmptyState
-                    icon={<Receipt />}
-                    title="No hay facturas"
-                    description={
-                      activeFilters.length > 0
-                        ? "No hay facturas que coincidan con los filtros aplicados."
-                        : "Aún no se ha recibido ninguna factura."
-                    }
-                    action={
-                      activeFilters.length > 0 ? (
-                        <Button asChild variant="outline" size="sm">
-                          <Link href="/facturas">Limpiar filtros</Link>
-                        </Button>
-                      ) : undefined
-                    }
-                  />
-                </TableCell>
-              </TableRow>
-            ) : (
-              (invoices ?? []).map((inv) => (
-                <TableRow key={inv.id} className="relative cursor-pointer">
-                  <TableCell className="font-medium text-neutral-900">
-                    <Link
-                      href={`/facturas/${inv.id}`}
-                      className="inline-flex items-center gap-1.5 after:absolute after:inset-0 after:content-[''] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2 rounded-sm"
-                    >
-                      {inv.invoice_number}
-                      {inv.po_storage_path ? (
-                        <Paperclip
-                          className="size-3.5 text-muted-foreground"
-                          aria-label="Orden de compra cargada"
-                        />
-                      ) : null}
-                    </Link>
-                  </TableCell>
-                  <TableCell>
-                    <div className="text-sm">{inv.supplier_name}</div>
-                    <div className="text-xs text-muted-foreground tabular-nums">
-                      NIT {inv.supplier_nit}
+      {total === 0 ? (
+        <div className="rounded-lg border bg-white shadow-[0_1px_2px_0_rgb(0_0_0/0.03)]">
+          <EmptyState
+            icon={<Receipt />}
+            title="No hay facturas"
+            description={
+              activeFilters.length > 0
+                ? "No hay facturas que coincidan con los filtros aplicados."
+                : "Aún no se ha recibido ninguna factura."
+            }
+            action={
+              activeFilters.length > 0 ? (
+                <Button asChild variant="outline" size="sm">
+                  <Link href="/facturas">Limpiar filtros</Link>
+                </Button>
+              ) : undefined
+            }
+          />
+        </div>
+      ) : (
+        <>
+          {/* Mobile: cards */}
+          <ul className="md:hidden space-y-2">
+            {(invoices ?? []).map((inv) => (
+              <li key={inv.id}>
+                <Link
+                  href={`/facturas/${inv.id}`}
+                  className="block rounded-lg border bg-white p-4 shadow-[0_1px_2px_0_rgb(0_0_0/0.03)] active:bg-neutral-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="font-semibold text-neutral-900 inline-flex items-center gap-1.5">
+                        {inv.invoice_number}
+                        {inv.po_storage_path ? (
+                          <Paperclip
+                            className="size-3.5 text-muted-foreground"
+                            aria-label="Orden de compra cargada"
+                          />
+                        ) : null}
+                      </div>
+                      <div className="text-sm text-neutral-700 truncate">
+                        {inv.supplier_name}
+                      </div>
+                      <div className="text-xs text-muted-foreground tabular-nums">
+                        NIT {inv.supplier_nit}
+                      </div>
                     </div>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Money value={inv.total_amount} />
-                  </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    {formatDateTime(inv.received_at)}
-                  </TableCell>
-                  <TableCell>
                     <StatusBadge status={inv.status} />
-                  </TableCell>
-                  <TableCell>
+                  </div>
+                  <div className="mt-3 flex items-center justify-between gap-3">
+                    <Money
+                      value={inv.total_amount}
+                      className="text-base font-semibold text-neutral-900"
+                    />
                     <ApprovalProgress
                       current={inv.current_approvals}
                       required={inv.required_approvals}
                       status={inv.status}
                     />
-                  </TableCell>
+                  </div>
+                  <div className="mt-1 text-xs text-muted-foreground">
+                    {formatDateTime(inv.received_at)}
+                  </div>
+                </Link>
+              </li>
+            ))}
+          </ul>
+
+          {/* Desktop: table */}
+          <div className="hidden md:block rounded-lg border bg-white overflow-hidden shadow-[0_1px_2px_0_rgb(0_0_0/0.03)]">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Número</TableHead>
+                  <TableHead>Proveedor</TableHead>
+                  <TableHead className="text-right">Monto</TableHead>
+                  <TableHead>Recibida</TableHead>
+                  <TableHead>Estado</TableHead>
+                  <TableHead>Progreso</TableHead>
                 </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
+              </TableHeader>
+              <TableBody>
+                {(invoices ?? []).map((inv) => (
+                  <TableRow key={inv.id} className="relative cursor-pointer">
+                    <TableCell className="font-medium text-neutral-900 whitespace-nowrap">
+                      <Link
+                        href={`/facturas/${inv.id}`}
+                        className="inline-flex items-center gap-1.5 after:absolute after:inset-0 after:content-[''] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2 rounded-sm"
+                      >
+                        {inv.invoice_number}
+                        {inv.po_storage_path ? (
+                          <Paperclip
+                            className="size-3.5 text-muted-foreground"
+                            aria-label="Orden de compra cargada"
+                          />
+                        ) : null}
+                      </Link>
+                    </TableCell>
+                    <TableCell>
+                      <div className="text-sm">{inv.supplier_name}</div>
+                      <div className="text-xs text-muted-foreground tabular-nums">
+                        NIT {inv.supplier_nit}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-right whitespace-nowrap">
+                      <Money value={inv.total_amount} />
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
+                      {formatDateTime(inv.received_at)}
+                    </TableCell>
+                    <TableCell>
+                      <StatusBadge status={inv.status} />
+                    </TableCell>
+                    <TableCell>
+                      <ApprovalProgress
+                        current={inv.current_approvals}
+                        required={inv.required_approvals}
+                        status={inv.status}
+                      />
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </>
+      )}
     </div>
   );
 }

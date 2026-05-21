@@ -87,8 +87,10 @@ export default async function FacturaDetallePage({ params }: { params: Params })
   const finalUrl = storageUrl(invoice.final_pdf_path);
   const poUrl = storageUrl(invoice.po_storage_path);
 
+  const showMobileStickyBar = Boolean(myApproval && myApproval.status === "pending");
+
   return (
-    <div className="space-y-5">
+    <div className={`space-y-5 ${showMobileStickyBar ? "pb-28 lg:pb-0" : ""}`}>
       <FlashToast />
       <PageHeader
         backHref={me.role === "approver" ? "/mis-aprobaciones" : "/facturas"}
@@ -113,9 +115,8 @@ export default async function FacturaDetallePage({ params }: { params: Params })
         }
       />
 
-      <div className="flex flex-wrap items-center gap-3 rounded-lg border bg-white px-4 py-3 shadow-[0_1px_2px_0_rgb(0_0_0/0.03)]">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-lg border bg-white px-4 py-3 shadow-[0_1px_2px_0_rgb(0_0_0/0.03)]">
         <StatusBadge status={invoice.status} size="md" />
-        <div className="h-5 w-px bg-border" aria-hidden />
         <div className="flex items-center gap-2 text-sm">
           <span className="text-muted-foreground">Aprobaciones</span>
           <ApprovalProgress
@@ -161,61 +162,91 @@ export default async function FacturaDetallePage({ params }: { params: Params })
                 />
               </div>
             </div>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Aprobador</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Estado</TableHead>
-                  <TableHead>Fecha</TableHead>
-                  <TableHead>Notas</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {(approvals ?? []).length === 0 ? (
-                  <TableRow className="hover:bg-transparent">
-                    <TableCell colSpan={5} className="p-0">
-                      <EmptyState
-                        icon={<UserX />}
-                        title="Sin aprobadores asignados"
-                        description="Esta factura aún no tiene aprobadores configurados."
-                        action={
-                          canConfigureApprovers ? (
-                            <ConfigureApproversDialog
-                              invoiceId={invoice.id}
-                              supplierName={invoice.supplier_name}
-                              currentRequired={invoice.required_approvals}
-                              approvers={dialogApprovers}
-                              action={configureInvoiceApprovers}
-                            />
-                          ) : null
-                        }
-                      />
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  (approvals ?? []).map((a) => (
-                    <TableRow key={a.id}>
-                      <TableCell className="font-medium text-neutral-900">
-                        {a.approvers?.name ?? "—"}
-                      </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
-                        {a.approvers?.email ?? "—"}
-                      </TableCell>
-                      <TableCell>
+            {(approvals ?? []).length === 0 ? (
+              <EmptyState
+                icon={<UserX />}
+                title="Sin aprobadores asignados"
+                description="Esta factura aún no tiene aprobadores configurados."
+                action={
+                  canConfigureApprovers ? (
+                    <ConfigureApproversDialog
+                      invoiceId={invoice.id}
+                      supplierName={invoice.supplier_name}
+                      currentRequired={invoice.required_approvals}
+                      approvers={dialogApprovers}
+                      action={configureInvoiceApprovers}
+                    />
+                  ) : null
+                }
+              />
+            ) : (
+              <>
+                {/* Mobile: cards */}
+                <ul className="md:hidden divide-y">
+                  {(approvals ?? []).map((a) => (
+                    <li key={a.id} className="p-4 space-y-1.5">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="font-medium text-neutral-900 truncate">
+                            {a.approvers?.name ?? "—"}
+                          </div>
+                          <div className="text-xs text-muted-foreground truncate">
+                            {a.approvers?.email ?? "—"}
+                          </div>
+                        </div>
                         <StatusBadge status={a.status} />
-                      </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
-                        {formatDateTime(a.approved_at)}
-                      </TableCell>
-                      <TableCell className="text-sm text-muted-foreground max-w-[240px] truncate">
-                        {a.notes ?? "—"}
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
+                      </div>
+                      {a.approved_at ? (
+                        <div className="text-xs text-muted-foreground">
+                          {formatDateTime(a.approved_at)}
+                        </div>
+                      ) : null}
+                      {a.notes ? (
+                        <div className="text-xs text-neutral-700 whitespace-pre-wrap break-words">
+                          {a.notes}
+                        </div>
+                      ) : null}
+                    </li>
+                  ))}
+                </ul>
+
+                {/* Desktop: table */}
+                <div className="hidden md:block">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Aprobador</TableHead>
+                        <TableHead>Email</TableHead>
+                        <TableHead>Estado</TableHead>
+                        <TableHead>Fecha</TableHead>
+                        <TableHead>Notas</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {(approvals ?? []).map((a) => (
+                        <TableRow key={a.id}>
+                          <TableCell className="font-medium text-neutral-900">
+                            {a.approvers?.name ?? "—"}
+                          </TableCell>
+                          <TableCell className="text-sm text-muted-foreground">
+                            {a.approvers?.email ?? "—"}
+                          </TableCell>
+                          <TableCell>
+                            <StatusBadge status={a.status} />
+                          </TableCell>
+                          <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
+                            {formatDateTime(a.approved_at)}
+                          </TableCell>
+                          <TableCell className="text-sm text-muted-foreground max-w-[240px] truncate">
+                            {a.notes ?? "—"}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </>
+            )}
           </div>
         </div>
 

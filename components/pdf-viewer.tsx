@@ -1,4 +1,5 @@
-import { FileWarning } from "lucide-react";
+import { ExternalLink, FileWarning } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 export function PdfViewer({
@@ -49,6 +50,15 @@ export function PdfViewer({
           ) : null}
         </div>
       ) : null}
+      {/* Mobile-only prominent open button — iframes for PDFs are unreliable on iOS Safari */}
+      <div className="md:hidden border-b bg-white p-3">
+        <Button asChild size="lg" className="w-full">
+          <a href={src} target="_blank" rel="noreferrer">
+            <ExternalLink className="size-4" />
+            Abrir {title} en pantalla completa
+          </a>
+        </Button>
+      </div>
       <iframe
         src={src}
         title={title}
