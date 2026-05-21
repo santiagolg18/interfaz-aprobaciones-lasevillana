@@ -59,7 +59,7 @@ export function SupplierFilters() {
   return (
     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[1fr_180px_180px_auto] lg:items-end">
       <div className="space-y-1.5">
-        <Label htmlFor="q" className="text-xs">
+        <Label htmlFor="q" className="text-sm font-medium">
           Buscar
         </Label>
         <div className="relative">
@@ -85,7 +85,7 @@ export function SupplierFilters() {
       </div>
 
       <div className="space-y-1.5">
-        <Label className="text-xs">Tipo</Label>
+        <Label className="text-sm font-medium">Tipo</Label>
         <Select
           value={sp.get("tipo") ?? ALL}
           onValueChange={(v) => setParam("tipo", v)}
@@ -102,7 +102,7 @@ export function SupplierFilters() {
       </div>
 
       <div className="space-y-1.5">
-        <Label className="text-xs">Aprobadores</Label>
+        <Label className="text-sm font-medium">Aprobadores</Label>
         <Select
           value={sp.get("approvers") ?? ALL}
           onValueChange={(v) => setParam("approvers", v)}

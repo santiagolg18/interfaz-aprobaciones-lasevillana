@@ -57,7 +57,7 @@ export function ApproverFilters() {
   return (
     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[1fr_180px_200px_auto] lg:items-end">
       <div className="space-y-1.5">
-        <Label htmlFor="q" className="text-xs">
+        <Label htmlFor="q" className="text-sm font-medium">
           Buscar
         </Label>
         <div className="relative">
@@ -83,7 +83,7 @@ export function ApproverFilters() {
       </div>
 
       <div className="space-y-1.5">
-        <Label className="text-xs">Estado</Label>
+        <Label className="text-sm font-medium">Estado</Label>
         <Select
           value={sp.get("estado") ?? ALL}
           onValueChange={(v) => setParam("estado", v)}
@@ -100,7 +100,7 @@ export function ApproverFilters() {
       </div>
 
       <div className="space-y-1.5">
-        <Label className="text-xs">Proveedores asignados</Label>
+        <Label className="text-sm font-medium">Proveedores asignados</Label>
         <Select
           value={sp.get("asignacion") ?? ALL}
           onValueChange={(v) => setParam("asignacion", v)}

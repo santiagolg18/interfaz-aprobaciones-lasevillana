@@ -1,6 +1,5 @@
-import Link from "next/link";
-import { notFound } from "next/navigation";
-import { ArrowLeft, FileCheck2, FileText } from "lucide-react";
+import { notFound, redirect } from "next/navigation";
+import { CheckCircle2, FileCheck2, UserX, XCircle } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -12,10 +11,17 @@ import {
 import { Button } from "@/components/ui/button";
 import { Money } from "@/components/money";
 import { StatusBadge } from "@/components/status-badge";
-import { PdfViewer } from "@/components/pdf-viewer";
-import { PurchaseOrderUpload } from "@/components/purchase-order-upload";
+import { ApprovalProgress } from "@/components/approval-progress";
+import { EmptyState } from "@/components/empty-state";
+import { PageHeader } from "@/components/page-header";
+import { FlashToast } from "@/components/flash-toast";
+import { InvoiceDocuments } from "@/components/invoice-documents";
+import { ApprovalActions } from "@/components/approval-actions";
+import { ConfigureApproversDialog } from "@/components/configure-approvers-dialog";
 import { createClient } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/auth/current-user";
 import { formatDate, formatDateTime, storageUrl } from "@/lib/format";
+import { configureInvoiceApprovers } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -23,6 +29,9 @@ type Params = Promise<{ id: string }>;
 
 export default async function FacturaDetallePage({ params }: { params: Params }) {
   const { id } = await params;
+  const me = await getCurrentUser();
+  if (!me) redirect("/login");
+
   const supabase = await createClient();
 
   const { data: invoice } = await supabase
@@ -35,9 +44,42 @@ export default async function FacturaDetallePage({ params }: { params: Params })
 
   const { data: approvals } = await supabase
     .from("approvals")
-    .select("id, status, approved_at, notes, created_at, approvers(name, email)")
+    .select("id, status, approved_at, notes, created_at, approver_id, approvers(name, email)")
     .eq("invoice_id", id)
     .order("created_at", { ascending: true });
+
+  const myApproval = me.profile
+    ? (approvals ?? []).find((a) => a.approver_id === me.profile!.id) ?? null
+    : null;
+
+  // Approvers solo pueden ver facturas a las que están asignados.
+  if (me.role === "approver" && !myApproval) {
+    redirect("/mis-aprobaciones");
+  }
+
+  const canManagePO = me.role === "admin" || me.role === "purchasing";
+  const canConfigureApprovers =
+    (me.role === "admin" || me.role === "purchasing") &&
+    invoice.status === "pending";
+
+  const currentAssignments = (approvals ?? []).map((a) => ({
+    approverId: a.approver_id,
+    status: a.status,
+  }));
+
+  let dialogApprovers: { id: string; name: string; email: string }[] = [];
+  if (canConfigureApprovers) {
+    const assignedIds = currentAssignments.map((a) => a.approverId);
+    const { data: allApprovers } = await supabase
+      .from("approvers")
+      .select("id, name, email, is_active")
+      .order("name");
+    dialogApprovers = (allApprovers ?? [])
+      .filter((a) => a.is_active || assignedIds.includes(a.id))
+      .map(({ id, name, email }) => ({ id, name, email }));
+  }
+
+  const hasApprovals = (approvals ?? []).length > 0;
 
   const originalUrl = storageUrl(
     invoice.pdf_storage_path ?? `${invoice.invoice_number}.pdf`,
@@ -47,55 +89,77 @@ export default async function FacturaDetallePage({ params }: { params: Params })
 
   return (
     <div className="space-y-5">
-      <div className="flex items-start justify-between gap-3 flex-wrap">
-        <div>
-          <Button asChild variant="ghost" size="sm" className="-ml-2 mb-1 text-muted-foreground">
-            <Link href="/facturas">
-              <ArrowLeft className="size-4" />
-              Volver a facturas
-            </Link>
-          </Button>
-          <h1 className="text-2xl font-semibold tracking-tight">
-            Factura {invoice.invoice_number}
-          </h1>
-          <p className="text-sm text-muted-foreground">
+      <FlashToast />
+      <PageHeader
+        backHref={me.role === "approver" ? "/mis-aprobaciones" : "/facturas"}
+        backLabel={
+          me.role === "approver" ? "Volver a mis aprobaciones" : "Volver a facturas"
+        }
+        title={<>Factura {invoice.invoice_number}</>}
+        description={
+          <>
             {invoice.supplier_name} · NIT {invoice.supplier_nit}
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <StatusBadge status={invoice.status} />
-          {poUrl ? (
-            <Button asChild variant="outline" size="sm">
-              <a href={poUrl} target="_blank" rel="noreferrer">
-                <FileText className="size-4" />
-                Ver OC
-              </a>
-            </Button>
-          ) : null}
-          {finalUrl ? (
+          </>
+        }
+        actions={
+          finalUrl ? (
             <Button asChild variant="outline" size="sm">
               <a href={finalUrl} target="_blank" rel="noreferrer">
                 <FileCheck2 className="size-4" />
                 Ver PDF aprobado
               </a>
             </Button>
-          ) : null}
+          ) : null
+        }
+      />
+
+      <div className="flex flex-wrap items-center gap-3 rounded-lg border bg-white px-4 py-3 shadow-[0_1px_2px_0_rgb(0_0_0/0.03)]">
+        <StatusBadge status={invoice.status} size="md" />
+        <div className="h-5 w-px bg-border" aria-hidden />
+        <div className="flex items-center gap-2 text-sm">
+          <span className="text-muted-foreground">Aprobaciones</span>
+          <ApprovalProgress
+            current={invoice.current_approvals}
+            required={invoice.required_approvals}
+            status={invoice.status}
+            size="md"
+          />
         </div>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-4">
-          <div className="rounded-lg border bg-white p-4">
-            <h2 className="text-sm font-semibold mb-3">Documento original</h2>
-            <PdfViewer src={originalUrl} title={`Factura ${invoice.invoice_number}`} />
-          </div>
+          <InvoiceDocuments
+            invoiceId={invoice.id}
+            invoiceNumber={invoice.invoice_number}
+            invoiceUrl={originalUrl}
+            poUrl={poUrl}
+            poStoragePath={invoice.po_storage_path}
+            poUploadedAt={invoice.po_uploaded_at}
+            canManagePO={canManagePO}
+          />
 
-          <div className="rounded-lg border bg-white overflow-hidden">
+          <div className="rounded-lg border bg-white overflow-hidden shadow-[0_1px_2px_0_rgb(0_0_0/0.03)]">
             <div className="flex items-center justify-between px-4 py-3 border-b">
-              <h2 className="text-sm font-semibold">Aprobaciones</h2>
-              <span className="text-xs text-muted-foreground tabular-nums">
-                {invoice.current_approvals}/{invoice.required_approvals}
-              </span>
+              <h2 className="text-sm font-semibold text-neutral-900">Aprobaciones</h2>
+              <div className="flex items-center gap-3">
+                {canConfigureApprovers && hasApprovals ? (
+                  <ConfigureApproversDialog
+                    invoiceId={invoice.id}
+                    supplierName={invoice.supplier_name}
+                    currentRequired={invoice.required_approvals}
+                    approvers={dialogApprovers}
+                    currentAssignments={currentAssignments}
+                    action={configureInvoiceApprovers}
+                    triggerVariant="ghost"
+                  />
+                ) : null}
+                <ApprovalProgress
+                  current={invoice.current_approvals}
+                  required={invoice.required_approvals}
+                  status={invoice.status}
+                />
+              </div>
             </div>
             <Table>
               <TableHeader>
@@ -109,30 +173,42 @@ export default async function FacturaDetallePage({ params }: { params: Params })
               </TableHeader>
               <TableBody>
                 {(approvals ?? []).length === 0 ? (
-                  <TableRow>
-                    <TableCell
-                      colSpan={5}
-                      className="h-16 text-center text-muted-foreground"
-                    >
-                      Sin aprobadores asignados.
+                  <TableRow className="hover:bg-transparent">
+                    <TableCell colSpan={5} className="p-0">
+                      <EmptyState
+                        icon={<UserX />}
+                        title="Sin aprobadores asignados"
+                        description="Esta factura aún no tiene aprobadores configurados."
+                        action={
+                          canConfigureApprovers ? (
+                            <ConfigureApproversDialog
+                              invoiceId={invoice.id}
+                              supplierName={invoice.supplier_name}
+                              currentRequired={invoice.required_approvals}
+                              approvers={dialogApprovers}
+                              action={configureInvoiceApprovers}
+                            />
+                          ) : null
+                        }
+                      />
                     </TableCell>
                   </TableRow>
                 ) : (
                   (approvals ?? []).map((a) => (
                     <TableRow key={a.id}>
-                      <TableCell className="font-medium">
+                      <TableCell className="font-medium text-neutral-900">
                         {a.approvers?.name ?? "—"}
                       </TableCell>
-                      <TableCell className="text-muted-foreground">
+                      <TableCell className="text-sm text-muted-foreground">
                         {a.approvers?.email ?? "—"}
                       </TableCell>
                       <TableCell>
                         <StatusBadge status={a.status} />
                       </TableCell>
-                      <TableCell className="text-muted-foreground">
+                      <TableCell className="text-sm text-muted-foreground">
                         {formatDateTime(a.approved_at)}
                       </TableCell>
-                      <TableCell className="text-muted-foreground max-w-[240px] truncate">
+                      <TableCell className="text-sm text-muted-foreground max-w-[240px] truncate">
                         {a.notes ?? "—"}
                       </TableCell>
                     </TableRow>
@@ -144,28 +220,102 @@ export default async function FacturaDetallePage({ params }: { params: Params })
         </div>
 
         <aside className="space-y-4">
-          <PurchaseOrderUpload
-            invoiceId={invoice.id}
-            poUrl={poUrl}
-            poUploadedAt={invoice.po_uploaded_at}
-          />
+          {myApproval && myApproval.status === "pending" ? (
+            <ApprovalActions invoiceId={invoice.id} approvalId={myApproval.id} />
+          ) : null}
 
-          <div className="rounded-lg border bg-white p-4 space-y-3">
-            <h2 className="text-sm font-semibold">Datos de la factura</h2>
-            <DetailRow label="Proveedor" value={invoice.supplier_name} />
-            <DetailRow label="NIT" value={invoice.supplier_nit} />
-            <DetailRow label="Monto" value={<Money value={invoice.total_amount} />} />
-            <DetailRow label="Moneda" value={invoice.currency ?? "COP"} />
-            <DetailRow label="Emisión" value={formatDate(invoice.issue_date)} />
-            <DetailRow label="Vencimiento" value={formatDate(invoice.due_date)} />
-            <DetailRow label="Recibida" value={formatDateTime(invoice.received_at)} />
-            <DetailRow label="Completada" value={formatDateTime(invoice.completed_at)} />
+          {myApproval && myApproval.status !== "pending" ? (
+            <div
+              className={`rounded-lg border p-4 shadow-[0_1px_2px_0_rgb(0_0_0/0.03)] ${
+                myApproval.status === "approved"
+                  ? "border-emerald-200 bg-emerald-50"
+                  : "border-rose-200 bg-rose-50"
+              }`}
+            >
+              <div className="flex items-start gap-2.5">
+                <div
+                  className={`flex size-9 items-center justify-center rounded-md ${
+                    myApproval.status === "approved"
+                      ? "bg-emerald-100 text-emerald-700"
+                      : "bg-rose-100 text-rose-700"
+                  }`}
+                >
+                  {myApproval.status === "approved" ? (
+                    <CheckCircle2 className="size-4" />
+                  ) : (
+                    <XCircle className="size-4" />
+                  )}
+                </div>
+                <div className="leading-tight">
+                  <div className="text-sm font-semibold text-neutral-900">
+                    {myApproval.status === "approved"
+                      ? "Ya aprobaste esta factura"
+                      : "Ya rechazaste esta factura"}
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-0.5">
+                    {formatDateTime(myApproval.approved_at)}
+                  </div>
+                  {myApproval.notes ? (
+                    <p className="text-xs text-neutral-700 mt-1.5 whitespace-pre-wrap">
+                      {myApproval.notes}
+                    </p>
+                  ) : null}
+                </div>
+              </div>
+            </div>
+          ) : null}
+
+          <div className="rounded-lg border bg-white shadow-[0_1px_2px_0_rgb(0_0_0/0.03)]">
+            <div className="px-4 py-3 border-b">
+              <h2 className="text-sm font-semibold text-neutral-900">
+                Datos de la factura
+              </h2>
+            </div>
+            <div className="px-4 py-3 border-b bg-muted/30">
+              <div className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+                Total
+              </div>
+              <div className="mt-0.5 flex items-baseline gap-2">
+                <Money
+                  value={invoice.total_amount}
+                  className="text-2xl font-semibold text-neutral-900"
+                />
+                <span className="text-xs text-muted-foreground">
+                  {invoice.currency ?? "COP"}
+                </span>
+              </div>
+            </div>
+            <dl className="divide-y divide-border">
+              <DetailRow label="Proveedor" value={invoice.supplier_name} />
+              <DetailRow
+                label="NIT"
+                value={
+                  <span className="font-mono tabular-nums text-sm">
+                    {invoice.supplier_nit}
+                  </span>
+                }
+              />
+              <DetailRow label="Emisión" value={formatDate(invoice.issue_date)} />
+              <DetailRow label="Vencimiento" value={formatDate(invoice.due_date)} />
+              <DetailRow
+                label="Recibida"
+                value={formatDateTime(invoice.received_at)}
+              />
+              {invoice.completed_at ? (
+                <DetailRow
+                  label="Completada"
+                  value={formatDateTime(invoice.completed_at)}
+                />
+              ) : null}
+            </dl>
           </div>
 
           {invoice.description ? (
-            <div className="rounded-lg border bg-white p-4">
-              <h2 className="text-sm font-semibold mb-2">Descripción</h2>
-              <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+            <div className="rounded-lg border bg-white p-4 shadow-[0_1px_2px_0_rgb(0_0_0/0.03)]">
+              <h2 className="text-sm font-semibold mb-2 text-neutral-900">
+                Descripción
+              </h2>
+              <p className="text-sm text-muted-foreground whitespace-pre-wrap leading-relaxed">
                 {invoice.description}
               </p>
             </div>
@@ -184,9 +334,13 @@ function DetailRow({
   value: React.ReactNode;
 }) {
   return (
-    <div className="flex justify-between gap-3 text-sm">
-      <span className="text-muted-foreground">{label}</span>
-      <span className="font-medium text-right">{value}</span>
+    <div className="flex items-center justify-between gap-3 px-4 py-2.5">
+      <dt className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+        {label}
+      </dt>
+      <dd className="text-sm font-medium text-right text-neutral-900">
+        {value ?? <span className="text-muted-foreground">—</span>}
+      </dd>
     </div>
   );
 }

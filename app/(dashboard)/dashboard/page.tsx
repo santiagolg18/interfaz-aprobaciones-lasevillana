@@ -1,5 +1,11 @@
 import Link from "next/link";
-import { AlertTriangle, CheckCircle2, Clock, XCircle } from "lucide-react";
+import {
+  AlertTriangle,
+  CheckCircle2,
+  Clock,
+  Inbox,
+  XCircle,
+} from "lucide-react";
 import {
   Table,
   TableBody,
@@ -13,8 +19,13 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/status-badge";
 import { Money } from "@/components/money";
+import { ApprovalProgress } from "@/components/approval-progress";
+import { EmptyState } from "@/components/empty-state";
+import { PageHeader } from "@/components/page-header";
+import { SubmitButton } from "@/components/submit-button";
 import { createClient } from "@/lib/supabase/server";
 import { formatDateTime } from "@/lib/format";
+import { cn } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -30,6 +41,14 @@ function humanizeSeconds(seconds: number): string {
   const days = Math.floor(hrs / 24);
   const h = hrs % 24;
   return h ? `${days} d ${h} h` : `${days} d`;
+}
+
+function daysAgo(iso: string | null | undefined): number | null {
+  if (!iso) return null;
+  const then = new Date(iso).getTime();
+  if (Number.isNaN(then)) return null;
+  const diff = Date.now() - then;
+  return Math.floor(diff / (1000 * 60 * 60 * 24));
 }
 
 export default async function DashboardPage({
@@ -82,28 +101,32 @@ export default async function DashboardPage({
   }
 
   const avgSeconds = Number(avgData ?? 0);
+  const pct = (n: number) =>
+    counts.total > 0 ? `${Math.round((n / counts.total) * 100)}% del total` : undefined;
 
   return (
     <div className="space-y-5">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
-        <p className="text-sm text-muted-foreground">
-          Vista consolidada del proceso de aprobación.
-        </p>
-      </div>
+      <PageHeader
+        title="Dashboard"
+        description="Vista consolidada del proceso de aprobación."
+      />
 
-      <form className="rounded-lg border bg-white p-4 grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+      <form className="rounded-lg border bg-white p-4 grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end shadow-[0_1px_2px_0_rgb(0_0_0/0.03)]">
         <div className="space-y-1.5">
-          <Label htmlFor="from" className="text-xs">Desde</Label>
+          <Label htmlFor="from" className="text-sm font-medium">
+            Desde
+          </Label>
           <Input id="from" name="from" type="date" defaultValue={from ?? ""} />
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="to" className="text-xs">Hasta</Label>
+          <Label htmlFor="to" className="text-sm font-medium">
+            Hasta
+          </Label>
           <Input id="to" name="to" type="date" defaultValue={to ?? ""} />
         </div>
         <div className="flex items-center gap-2">
-          <Button type="submit">Aplicar</Button>
-          {(from || to) ? (
+          <SubmitButton>Aplicar</SubmitButton>
+          {from || to ? (
             <Button asChild variant="ghost">
               <Link href="/dashboard">Limpiar</Link>
             </Button>
@@ -112,49 +135,52 @@ export default async function DashboardPage({
       </form>
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <Card
+        <KpiCard
           label="Total"
           value={counts.total.toString()}
           icon={<Clock className="size-5" />}
-          tint="bg-neutral-50 text-neutral-700"
+          tint="bg-neutral-100 text-neutral-700"
         />
-        <Card
+        <KpiCard
           label="Pendientes"
           value={counts.pending.toString()}
+          hint={pct(counts.pending)}
           icon={<AlertTriangle className="size-5" />}
           tint="bg-amber-50 text-amber-700"
         />
-        <Card
+        <KpiCard
           label="Aprobadas"
           value={counts.approved.toString()}
+          hint={pct(counts.approved)}
           icon={<CheckCircle2 className="size-5" />}
           tint="bg-emerald-50 text-emerald-700"
         />
-        <Card
+        <KpiCard
           label="Rechazadas"
           value={counts.rejected.toString()}
+          hint={pct(counts.rejected)}
           icon={<XCircle className="size-5" />}
           tint="bg-rose-50 text-rose-700"
         />
       </div>
 
       <div className="grid gap-3 lg:grid-cols-2">
-        <div className="rounded-lg border bg-white p-5">
-          <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+        <div className="rounded-lg border bg-white p-5 shadow-[0_1px_2px_0_rgb(0_0_0/0.03)]">
+          <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
             Tiempo promedio de aprobación
           </div>
-          <div className="mt-2 text-2xl font-semibold">
+          <div className="mt-2 text-2xl font-semibold tabular-nums text-neutral-900">
             {humanizeSeconds(avgSeconds)}
           </div>
           <p className="mt-1 text-xs text-muted-foreground">
             Promedio desde que se recibe la factura hasta que se completa el proceso.
           </p>
         </div>
-        <div className="rounded-lg border bg-white p-5">
-          <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+        <div className="rounded-lg border bg-white p-5 shadow-[0_1px_2px_0_rgb(0_0_0/0.03)]">
+          <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
             Monto total aprobado
           </div>
-          <div className="mt-2 text-2xl font-semibold">
+          <div className="mt-2 text-2xl font-semibold text-neutral-900">
             <Money value={totalApprovedAmount} />
           </div>
           <p className="mt-1 text-xs text-muted-foreground">
@@ -163,9 +189,11 @@ export default async function DashboardPage({
         </div>
       </div>
 
-      <div className="rounded-lg border bg-white overflow-hidden">
+      <div className="rounded-lg border bg-white overflow-hidden shadow-[0_1px_2px_0_rgb(0_0_0/0.03)]">
         <div className="px-4 py-3 border-b">
-          <h2 className="text-sm font-semibold">Pendientes más antiguas</h2>
+          <h2 className="text-sm font-semibold text-neutral-900">
+            Pendientes más antiguas
+          </h2>
           <p className="text-xs text-muted-foreground">
             Facturas aún en estado pendiente, ordenadas por fecha de recepción.
           </p>
@@ -177,38 +205,61 @@ export default async function DashboardPage({
               <TableHead>Proveedor</TableHead>
               <TableHead className="text-right">Monto</TableHead>
               <TableHead>Recibida</TableHead>
+              <TableHead>Antigüedad</TableHead>
               <TableHead>Progreso</TableHead>
               <TableHead>Estado</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {(oldest ?? []).length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={6} className="h-16 text-center text-muted-foreground">
-                  No hay facturas pendientes en el rango seleccionado.
+              <TableRow className="hover:bg-transparent">
+                <TableCell colSpan={7} className="p-0">
+                  <EmptyState
+                    icon={<Inbox />}
+                    title="No hay facturas pendientes"
+                    description="Sin facturas en estado pendiente dentro del rango seleccionado."
+                  />
                 </TableCell>
               </TableRow>
             ) : (
-              (oldest ?? []).map((inv) => (
-                <TableRow key={inv.id} className="hover:bg-neutral-50">
-                  <TableCell className="font-medium">
-                    <Link href={`/facturas/${inv.id}`}>{inv.invoice_number}</Link>
-                  </TableCell>
-                  <TableCell>{inv.supplier_name}</TableCell>
-                  <TableCell className="text-right">
-                    <Money value={inv.total_amount} />
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {formatDateTime(inv.received_at)}
-                  </TableCell>
-                  <TableCell className="tabular-nums text-sm">
-                    {inv.current_approvals}/{inv.required_approvals}
-                  </TableCell>
-                  <TableCell>
-                    <StatusBadge status={inv.status} />
-                  </TableCell>
-                </TableRow>
-              ))
+              (oldest ?? []).map((inv) => {
+                const days = daysAgo(inv.received_at);
+                return (
+                  <TableRow
+                    key={inv.id}
+                    className="relative cursor-pointer"
+                  >
+                    <TableCell className="font-medium text-neutral-900">
+                      <Link
+                        href={`/facturas/${inv.id}`}
+                        className="inline-block after:absolute after:inset-0 after:content-[''] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2 rounded-sm"
+                      >
+                        {inv.invoice_number}
+                      </Link>
+                    </TableCell>
+                    <TableCell className="text-sm">{inv.supplier_name}</TableCell>
+                    <TableCell className="text-right">
+                      <Money value={inv.total_amount} />
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {formatDateTime(inv.received_at)}
+                    </TableCell>
+                    <TableCell>
+                      <DaysAgoBadge days={days} />
+                    </TableCell>
+                    <TableCell>
+                      <ApprovalProgress
+                        current={inv.current_approvals}
+                        required={inv.required_approvals}
+                        status={inv.status}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <StatusBadge status={inv.status} />
+                    </TableCell>
+                  </TableRow>
+                );
+              })
             )}
           </TableBody>
         </Table>
@@ -217,30 +268,62 @@ export default async function DashboardPage({
   );
 }
 
-function Card({
+function KpiCard({
   label,
   value,
   icon,
   tint,
+  hint,
 }: {
   label: string;
   value: string;
   icon: React.ReactNode;
   tint: string;
+  hint?: string;
 }) {
   return (
-    <div className="rounded-lg border bg-white p-5">
+    <div className="rounded-lg border bg-white p-5 shadow-[0_1px_2px_0_rgb(0_0_0/0.03)]">
       <div className="flex items-center justify-between">
-        <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+        <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
           {label}
         </div>
         <div
-          className={`flex size-8 items-center justify-center rounded-md ${tint}`}
+          className={cn(
+            "flex size-9 items-center justify-center rounded-md",
+            tint,
+          )}
         >
           {icon}
         </div>
       </div>
-      <div className="mt-2 text-2xl font-semibold tabular-nums">{value}</div>
+      <div className="mt-3 text-3xl font-semibold tabular-nums leading-none text-neutral-900">
+        {value}
+      </div>
+      {hint ? (
+        <div className="mt-2 text-xs text-muted-foreground tabular-nums">
+          {hint}
+        </div>
+      ) : null}
     </div>
+  );
+}
+
+function DaysAgoBadge({ days }: { days: number | null }) {
+  if (days === null) return <span className="text-xs text-muted-foreground">—</span>;
+  const tone =
+    days >= 7
+      ? "bg-rose-50 text-rose-700 ring-rose-200"
+      : days >= 3
+        ? "bg-amber-50 text-amber-700 ring-amber-200"
+        : "bg-neutral-50 text-neutral-700 ring-neutral-200";
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium tabular-nums ring-1 ring-inset whitespace-nowrap",
+        tone,
+      )}
+    >
+      {days === 0 ? "Hoy" : days === 1 ? "1 día" : `${days} días`}
+    </span>
   );
 }

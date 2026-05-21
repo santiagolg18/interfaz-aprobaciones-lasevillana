@@ -1,8 +1,10 @@
 import Link from "next/link";
+import { AlertCircle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
+import { SubmitButton } from "@/components/submit-button";
 import {
   Select,
   SelectContent,
@@ -45,7 +47,7 @@ export function SupplierForm({
       {supplier ? <input type="hidden" name="id" value={supplier.id} /> : null}
 
       <div className="space-y-4">
-        <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+        <h2 className="text-xs font-semibold text-neutral-500 uppercase tracking-wider">
           Datos básicos
         </h2>
         <div className="grid gap-4 sm:grid-cols-2">
@@ -122,7 +124,7 @@ export function SupplierForm({
       </div>
 
       <div className="space-y-4">
-        <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+        <h2 className="text-xs font-semibold text-neutral-500 uppercase tracking-wider">
           Contacto de facturación
         </h2>
         <div className="grid gap-4 sm:grid-cols-2">
@@ -149,7 +151,7 @@ export function SupplierForm({
       </div>
 
       <div className="space-y-4">
-        <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+        <h2 className="text-xs font-semibold text-neutral-500 uppercase tracking-wider">
           Aprobaciones
         </h2>
         <div className="space-y-1.5 sm:max-w-[200px]">
@@ -199,16 +201,22 @@ export function SupplierForm({
       </div>
 
       {error ? (
-        <p className="rounded-md bg-rose-50 px-3 py-2 text-sm text-rose-700 ring-1 ring-inset ring-rose-200">
-          {error}
-        </p>
+        <div
+          role="alert"
+          className="flex items-start gap-2 rounded-md bg-rose-50 px-3 py-2 text-sm text-rose-700 ring-1 ring-inset ring-rose-200"
+        >
+          <AlertCircle className="size-4 mt-0.5 shrink-0" />
+          <span>{error}</span>
+        </div>
       ) : null}
 
       <div className="flex items-center gap-2 justify-end">
         <Button asChild variant="ghost">
           <Link href="/proveedores">Cancelar</Link>
         </Button>
-        <Button type="submit">{supplier ? "Guardar cambios" : "Crear proveedor"}</Button>
+        <SubmitButton pendingLabel={supplier ? "Guardando…" : "Creando…"}>
+          {supplier ? "Guardar cambios" : "Crear proveedor"}
+        </SubmitButton>
       </div>
     </form>
   );

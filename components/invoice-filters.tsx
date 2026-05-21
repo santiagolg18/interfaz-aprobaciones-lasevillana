@@ -36,9 +36,9 @@ export function InvoiceFilters({ suppliers }: { suppliers: Supplier[] }) {
   const hasAny = ["status", "supplier_id", "from", "to"].some((k) => sp.get(k));
 
   return (
-    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_180px_180px_auto] lg:items-end">
       <div className="space-y-1.5">
-        <Label className="text-xs">Estado</Label>
+        <Label className="text-sm font-medium">Estado</Label>
         <Select
           value={sp.get("status") ?? ALL}
           onValueChange={(v) => setParam("status", v)}
@@ -56,7 +56,7 @@ export function InvoiceFilters({ suppliers }: { suppliers: Supplier[] }) {
       </div>
 
       <div className="space-y-1.5">
-        <Label className="text-xs">Proveedor</Label>
+        <Label className="text-sm font-medium">Proveedor</Label>
         <Select
           value={sp.get("supplier_id") ?? ALL}
           onValueChange={(v) => setParam("supplier_id", v)}
@@ -76,7 +76,7 @@ export function InvoiceFilters({ suppliers }: { suppliers: Supplier[] }) {
       </div>
 
       <div className="space-y-1.5">
-        <Label className="text-xs">Desde</Label>
+        <Label className="text-sm font-medium">Desde</Label>
         <Input
           type="date"
           defaultValue={sp.get("from") ?? ""}
@@ -85,7 +85,7 @@ export function InvoiceFilters({ suppliers }: { suppliers: Supplier[] }) {
       </div>
 
       <div className="space-y-1.5">
-        <Label className="text-xs">Hasta</Label>
+        <Label className="text-sm font-medium">Hasta</Label>
         <Input
           type="date"
           defaultValue={sp.get("to") ?? ""}

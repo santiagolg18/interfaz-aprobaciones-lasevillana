@@ -14,6 +14,8 @@ import { FlashToast } from "@/components/flash-toast";
 import { SupplierFilters } from "@/components/supplier-filters";
 import { Pagination } from "@/components/pagination";
 import { DeleteSupplierButton } from "@/components/delete-supplier-button";
+import { EmptyState } from "@/components/empty-state";
+import { PageHeader } from "@/components/page-header";
 import { createClient } from "@/lib/supabase/server";
 import { deleteSupplier } from "./actions";
 
@@ -135,20 +137,18 @@ export default async function ProveedoresPage({
     <div className="space-y-5">
       <FlashToast />
 
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Proveedores</h1>
-          <p className="text-sm text-muted-foreground">
-            Gestiona los proveedores y sus reglas de aprobación.
-          </p>
-        </div>
-        <Button asChild>
-          <Link href="/proveedores/new">
-            <Plus className="size-4" />
-            Nuevo proveedor
-          </Link>
-        </Button>
-      </div>
+      <PageHeader
+        title="Proveedores"
+        description="Gestiona los proveedores y sus reglas de aprobación."
+        actions={
+          <Button asChild>
+            <Link href="/proveedores/new">
+              <Plus className="size-4" />
+              Nuevo proveedor
+            </Link>
+          </Button>
+        }
+      />
 
       <div className="grid gap-3 sm:grid-cols-3">
         <StatCard
@@ -174,7 +174,7 @@ export default async function ProveedoresPage({
         />
       </div>
 
-      <div className="rounded-lg border bg-white p-4 space-y-3">
+      <div className="rounded-lg border bg-white p-4 space-y-3 shadow-[0_1px_2px_0_rgb(0_0_0/0.03)]">
         {approverFilter ? (
           <div className="flex flex-wrap items-center gap-2 rounded-md border border-primary/20 bg-primary/5 px-3 py-2 text-sm">
             <Users className="size-4 text-primary" />
@@ -200,7 +200,7 @@ export default async function ProveedoresPage({
         </div>
       ) : null}
 
-      <div className="rounded-lg border bg-white overflow-hidden">
+      <div className="rounded-lg border bg-white overflow-hidden shadow-[0_1px_2px_0_rgb(0_0_0/0.03)]">
         <Table>
           <TableHeader>
             <TableRow>
@@ -214,29 +214,31 @@ export default async function ProveedoresPage({
           </TableHeader>
           <TableBody>
             {filtered.length === 0 ? (
-              <TableRow>
-                <TableCell
-                  colSpan={6}
-                  className="h-32 text-center text-muted-foreground"
-                >
-                  {hasFilters ? (
-                    <div className="space-y-1">
-                      <p>No hay proveedores que coincidan con los filtros.</p>
-                      <p className="text-xs">
-                        Prueba con otro término o limpia los filtros.
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      <p>Aún no hay proveedores.</p>
-                      <Button asChild size="sm" variant="outline">
-                        <Link href="/proveedores/new">
-                          <Plus className="size-4" />
-                          Crear el primero
-                        </Link>
-                      </Button>
-                    </div>
-                  )}
+              <TableRow className="hover:bg-transparent">
+                <TableCell colSpan={6} className="p-0">
+                  <EmptyState
+                    icon={<Building2 />}
+                    title={
+                      hasFilters
+                        ? "Sin resultados"
+                        : "Aún no hay proveedores"
+                    }
+                    description={
+                      hasFilters
+                        ? "No hay proveedores que coincidan con los filtros. Prueba con otro término o limpia los filtros."
+                        : "Empieza creando tu primer proveedor para asignar reglas de aprobación."
+                    }
+                    action={
+                      hasFilters ? undefined : (
+                        <Button asChild size="sm">
+                          <Link href="/proveedores/new">
+                            <Plus className="size-4" />
+                            Crear el primero
+                          </Link>
+                        </Button>
+                      )
+                    }
+                  />
                 </TableCell>
               </TableRow>
             ) : (
@@ -247,7 +249,7 @@ export default async function ProveedoresPage({
                 const phone = s.celular || s.telefono;
                 return (
                   <TableRow key={s.id}>
-                    <TableCell className="font-mono text-xs tabular-nums">
+                    <TableCell className="font-mono text-sm tabular-nums text-neutral-700">
                       {s.nit}
                     </TableCell>
                     <TableCell>
@@ -359,19 +361,31 @@ function StatCard({
       ? "border-amber-200 bg-amber-50"
       : "border-neutral-200 bg-white";
   const iconClass =
-    tone === "warning" ? "text-amber-600" : "text-muted-foreground";
+    tone === "warning"
+      ? "bg-amber-100 text-amber-700"
+      : "bg-neutral-100 text-neutral-600";
   return (
-    <div className={`rounded-lg border p-4 ${toneClass}`}>
+    <div
+      className={`rounded-lg border p-4 shadow-[0_1px_2px_0_rgb(0_0_0/0.03)] ${toneClass}`}
+    >
       <div className="flex items-center justify-between">
-        <p className="text-xs font-medium text-muted-foreground">{label}</p>
-        <span className={iconClass}>{icon}</span>
+        <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+          {label}
+        </p>
+        <span
+          className={`flex size-8 items-center justify-center rounded-md ${iconClass}`}
+        >
+          {icon}
+        </span>
       </div>
-      <div className="mt-2 flex items-baseline gap-2">
-        <p className="text-2xl font-semibold tabular-nums">
+      <div className="mt-3 flex items-baseline gap-2">
+        <p className="text-2xl font-semibold tabular-nums text-neutral-900">
           {value.toLocaleString("es-CO")}
         </p>
         {hint && (
-          <span className="text-xs text-muted-foreground">{hint}</span>
+          <span className="text-xs text-muted-foreground tabular-nums">
+            {hint}
+          </span>
         )}
       </div>
     </div>

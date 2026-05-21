@@ -1,8 +1,10 @@
 import Link from "next/link";
+import { AlertCircle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
+import { SubmitButton } from "@/components/submit-button";
 
 export function ApproverForm({
   action,
@@ -58,16 +60,22 @@ export function ApproverForm({
       </label>
 
       {error ? (
-        <p className="rounded-md bg-rose-50 px-3 py-2 text-sm text-rose-700 ring-1 ring-inset ring-rose-200">
-          {error}
-        </p>
+        <div
+          role="alert"
+          className="flex items-start gap-2 rounded-md bg-rose-50 px-3 py-2 text-sm text-rose-700 ring-1 ring-inset ring-rose-200"
+        >
+          <AlertCircle className="size-4 mt-0.5 shrink-0" />
+          <span>{error}</span>
+        </div>
       ) : null}
 
       <div className="flex items-center gap-2 justify-end">
         <Button asChild variant="ghost">
           <Link href="/aprobadores">Cancelar</Link>
         </Button>
-        <Button type="submit">{isEdit ? "Guardar cambios" : "Crear aprobador"}</Button>
+        <SubmitButton pendingLabel={isEdit ? "Guardando…" : "Creando…"}>
+          {isEdit ? "Guardar cambios" : "Crear aprobador"}
+        </SubmitButton>
       </div>
     </form>
   );

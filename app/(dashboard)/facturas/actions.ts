@@ -6,6 +6,17 @@ import { createAdminClient } from "@/lib/supabase/admin";
 
 const BUCKET = "invoices";
 const MAX_BYTES = 10 * 1024 * 1024;
+const ALLOWED_MIME = new Set([
+  "application/pdf",
+  "image/jpeg",
+  "image/png",
+]);
+
+function extFor(mime: string): "pdf" | "png" | "jpg" {
+  if (mime === "application/pdf") return "pdf";
+  if (mime === "image/png") return "png";
+  return "jpg";
+}
 
 type ActionResult = { ok: true } | { error: string };
 
@@ -15,10 +26,10 @@ export async function uploadPurchaseOrder(
 ): Promise<ActionResult> {
   const file = formData.get("file");
   if (!(file instanceof File) || file.size === 0) {
-    return { error: "Selecciona un archivo PDF" };
+    return { error: "Selecciona un archivo PDF, JPG o PNG" };
   }
-  if (file.type !== "application/pdf") {
-    return { error: "El archivo debe ser PDF" };
+  if (!ALLOWED_MIME.has(file.type)) {
+    return { error: "El archivo debe ser PDF, JPG o PNG" };
   }
   if (file.size > MAX_BYTES) {
     return { error: "El archivo supera el límite de 10 MB" };
@@ -27,22 +38,32 @@ export async function uploadPurchaseOrder(
   const supabase = await createClient();
   const { data: invoice, error: fetchError } = await supabase
     .from("invoices")
-    .select("supplier_nit, invoice_number")
+    .select("supplier_nit, invoice_number, po_storage_path")
     .eq("id", invoiceId)
     .maybeSingle();
   if (fetchError) return { error: fetchError.message };
   if (!invoice) return { error: "Factura no encontrada" };
 
-  const objectPath = `ordenes-compra/${invoice.supplier_nit}/${invoice.invoice_number}_oc.pdf`;
+  const ext = extFor(file.type);
+  const objectPath = `ordenes-compra/${invoice.supplier_nit}/${invoice.invoice_number}_oc.${ext}`;
   const storedPath = `${BUCKET}/${objectPath}`;
 
   const admin = createAdminClient();
+
+  if (
+    invoice.po_storage_path &&
+    invoice.po_storage_path.toLowerCase() !== storedPath.toLowerCase()
+  ) {
+    const previousObject = invoice.po_storage_path.replace(/^invoices\//i, "");
+    await admin.storage.from(BUCKET).remove([previousObject]);
+  }
+
   const bytes = new Uint8Array(await file.arrayBuffer());
 
   const { error: uploadError } = await admin.storage
     .from(BUCKET)
     .upload(objectPath, bytes, {
-      contentType: "application/pdf",
+      contentType: file.type,
       upsert: true,
     });
   if (uploadError) return { error: `Upload falló: ${uploadError.message}` };

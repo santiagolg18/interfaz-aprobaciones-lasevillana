@@ -101,27 +101,33 @@ export type Database = {
       }
       approvers: {
         Row: {
+          auth_user_id: string | null
           created_at: string | null
           email: string
           id: string
           is_active: boolean | null
           name: string
+          role: string
           telegram_chat_id: string | null
         }
         Insert: {
+          auth_user_id?: string | null
           created_at?: string | null
           email: string
           id?: string
           is_active?: boolean | null
           name: string
+          role?: string
           telegram_chat_id?: string | null
         }
         Update: {
+          auth_user_id?: string | null
           created_at?: string | null
           email?: string
           id?: string
           is_active?: boolean | null
           name?: string
+          role?: string
           telegram_chat_id?: string | null
         }
         Relationships: []

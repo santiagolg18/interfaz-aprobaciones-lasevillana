@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Pencil, Plus, Users, UserCheck, UserX, Mail } from "lucide-react";
+import { Pencil, Settings, Users, UserCheck, UserX, Mail } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -14,7 +14,11 @@ import { FlashToast } from "@/components/flash-toast";
 import { StatusBadge } from "@/components/status-badge";
 import { ApproverFilters } from "@/components/approver-filters";
 import { ApproverToggleButton } from "@/components/approver-toggle-button";
+import { Avatar } from "@/components/avatar";
+import { EmptyState } from "@/components/empty-state";
+import { PageHeader } from "@/components/page-header";
 import { createClient } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/auth/current-user";
 import { toggleApproverActive } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -35,11 +39,14 @@ export default async function AprobadoresPage({
   const estado = sp.estado;
   const asignacion = sp.asignacion;
 
+  const me = await getCurrentUser();
+  const isAdmin = me?.role === "admin";
   const supabase = await createClient();
 
   let query = supabase
     .from("approvers")
     .select("id, name, email, is_active, approval_rules(count)")
+    .eq("role", "approver")
     .order("name");
 
   if (q) {
@@ -64,23 +71,31 @@ export default async function AprobadoresPage({
     return true;
   });
 
-  // Stats globales (sin filtros) — pequeñas, en paralelo
+  // Stats globales (sin filtros) — pequeñas, en paralelo. Solo cuentan aprobadores reales.
   const [
     { count: totalAll },
     { count: totalActivos },
     { count: totalInactivos },
     { data: allWithCounts },
   ] = await Promise.all([
-    supabase.from("approvers").select("id", { count: "exact", head: true }),
     supabase
       .from("approvers")
       .select("id", { count: "exact", head: true })
+      .eq("role", "approver"),
+    supabase
+      .from("approvers")
+      .select("id", { count: "exact", head: true })
+      .eq("role", "approver")
       .eq("is_active", true),
     supabase
       .from("approvers")
       .select("id", { count: "exact", head: true })
+      .eq("role", "approver")
       .eq("is_active", false),
-    supabase.from("approvers").select("id, approval_rules(count)"),
+    supabase
+      .from("approvers")
+      .select("id, approval_rules(count)")
+      .eq("role", "approver"),
   ]);
 
   const totalSinProveedores = (allWithCounts ?? []).filter((a) => {
@@ -96,20 +111,20 @@ export default async function AprobadoresPage({
     <div className="space-y-5">
       <FlashToast />
 
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Aprobadores</h1>
-          <p className="text-sm text-muted-foreground">
-            Personas autorizadas para aprobar facturas.
-          </p>
-        </div>
-        <Button asChild>
-          <Link href="/aprobadores/new">
-            <Plus className="size-4" />
-            Nuevo aprobador
-          </Link>
-        </Button>
-      </div>
+      <PageHeader
+        title="Aprobadores"
+        description="Personas autorizadas para aprobar facturas."
+        actions={
+          isAdmin ? (
+            <Button asChild variant="outline">
+              <Link href="/configuracion">
+                <Settings className="size-4" />
+                Gestionar usuarios
+              </Link>
+            </Button>
+          ) : undefined
+        }
+      />
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
@@ -140,7 +155,7 @@ export default async function AprobadoresPage({
         />
       </div>
 
-      <div className="rounded-lg border bg-white p-4">
+      <div className="rounded-lg border bg-white p-4 shadow-[0_1px_2px_0_rgb(0_0_0/0.03)]">
         <ApproverFilters />
       </div>
 
@@ -150,7 +165,7 @@ export default async function AprobadoresPage({
         </div>
       ) : null}
 
-      <div className="rounded-lg border bg-white overflow-hidden">
+      <div className="rounded-lg border bg-white overflow-hidden shadow-[0_1px_2px_0_rgb(0_0_0/0.03)]">
         <Table>
           <TableHeader>
             <TableRow>
@@ -163,29 +178,31 @@ export default async function AprobadoresPage({
           </TableHeader>
           <TableBody>
             {filtered.length === 0 ? (
-              <TableRow>
-                <TableCell
-                  colSpan={5}
-                  className="h-32 text-center text-muted-foreground"
-                >
-                  {hasFilters ? (
-                    <div className="space-y-1">
-                      <p>No hay aprobadores que coincidan con los filtros.</p>
-                      <p className="text-xs">
-                        Prueba con otro término o limpia los filtros.
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      <p>Aún no hay aprobadores.</p>
-                      <Button asChild size="sm" variant="outline">
-                        <Link href="/aprobadores/new">
-                          <Plus className="size-4" />
-                          Crear el primero
-                        </Link>
-                      </Button>
-                    </div>
-                  )}
+              <TableRow className="hover:bg-transparent">
+                <TableCell colSpan={5} className="p-0">
+                  <EmptyState
+                    icon={<Users />}
+                    title={
+                      hasFilters ? "Sin resultados" : "Aún no hay aprobadores"
+                    }
+                    description={
+                      hasFilters
+                        ? "No hay aprobadores que coincidan con los filtros. Prueba con otro término o limpia los filtros."
+                        : isAdmin
+                          ? "Crea tu primer aprobador desde Configuración."
+                          : "Aún no hay aprobadores. Pídele al admin que cree uno desde Configuración."
+                    }
+                    action={
+                      hasFilters || !isAdmin ? undefined : (
+                        <Button asChild size="sm">
+                          <Link href="/configuracion/new">
+                            <Settings className="size-4" />
+                            Ir a Configuración
+                          </Link>
+                        </Button>
+                      )
+                    }
+                  />
                 </TableCell>
               </TableRow>
             ) : (
@@ -193,10 +210,13 @@ export default async function AprobadoresPage({
                 <TableRow key={a.id}>
                   <TableCell>
                     <div className="flex items-center gap-3">
-                      <Avatar name={a.name} active={!!a.is_active} />
+                      <Avatar
+                        name={a.name}
+                        tone={a.is_active ? "primary" : "muted"}
+                      />
                       <Link
                         href={`/aprobadores/${a.id}`}
-                        className="font-medium leading-tight hover:underline"
+                        className="font-medium leading-tight text-neutral-900 hover:underline"
                       >
                         {a.name}
                       </Link>
@@ -243,23 +263,27 @@ export default async function AprobadoresPage({
                     )}
                   </TableCell>
                   <TableCell className="text-right">
-                    <div className="flex items-center justify-end gap-1">
-                      <ApproverToggleButton
-                        id={a.id}
-                        name={a.name}
-                        isActive={!!a.is_active}
-                        assignedCount={a.rulesCount}
-                        action={toggleApproverActive}
-                      />
-                      <Button asChild variant="ghost" size="icon">
-                        <Link
-                          href={`/aprobadores/${a.id}`}
-                          aria-label={`Editar ${a.name}`}
-                        >
-                          <Pencil className="size-4" />
-                        </Link>
-                      </Button>
-                    </div>
+                    {isAdmin ? (
+                      <div className="flex items-center justify-end gap-1">
+                        <ApproverToggleButton
+                          id={a.id}
+                          name={a.name}
+                          isActive={!!a.is_active}
+                          assignedCount={a.rulesCount}
+                          action={toggleApproverActive}
+                        />
+                        <Button asChild variant="ghost" size="icon">
+                          <Link
+                            href={`/aprobadores/${a.id}`}
+                            aria-label={`Editar ${a.name}`}
+                          >
+                            <Pencil className="size-4" />
+                          </Link>
+                        </Button>
+                      </div>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">—</span>
+                    )}
                   </TableCell>
                 </TableRow>
               ))
@@ -289,41 +313,33 @@ function StatCard({
       ? "border-amber-200 bg-amber-50"
       : "border-neutral-200 bg-white";
   const iconClass =
-    tone === "warning" ? "text-amber-600" : "text-muted-foreground";
+    tone === "warning"
+      ? "bg-amber-100 text-amber-700"
+      : "bg-neutral-100 text-neutral-600";
   return (
-    <div className={`rounded-lg border p-4 ${toneClass}`}>
+    <div
+      className={`rounded-lg border p-4 shadow-[0_1px_2px_0_rgb(0_0_0/0.03)] ${toneClass}`}
+    >
       <div className="flex items-center justify-between">
-        <p className="text-xs font-medium text-muted-foreground">{label}</p>
-        <span className={iconClass}>{icon}</span>
+        <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+          {label}
+        </p>
+        <span
+          className={`flex size-8 items-center justify-center rounded-md ${iconClass}`}
+        >
+          {icon}
+        </span>
       </div>
-      <div className="mt-2 flex items-baseline gap-2">
-        <p className="text-2xl font-semibold tabular-nums">
+      <div className="mt-3 flex items-baseline gap-2">
+        <p className="text-2xl font-semibold tabular-nums text-neutral-900">
           {value.toLocaleString("es-CO")}
         </p>
         {hint && (
-          <span className="text-xs text-muted-foreground">{hint}</span>
+          <span className="text-xs text-muted-foreground tabular-nums">
+            {hint}
+          </span>
         )}
       </div>
     </div>
-  );
-}
-
-function Avatar({ name, active }: { name: string; active: boolean }) {
-  const initials = name
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((p) => p[0]?.toUpperCase() ?? "")
-    .join("");
-  const palette = active
-    ? "bg-primary/10 text-primary"
-    : "bg-neutral-100 text-neutral-500";
-  return (
-    <span
-      aria-hidden
-      className={`flex size-9 items-center justify-center rounded-full text-xs font-semibold ${palette}`}
-    >
-      {initials || "?"}
-    </span>
   );
 }
