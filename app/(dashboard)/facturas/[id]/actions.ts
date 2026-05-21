@@ -112,6 +112,26 @@ async function recordDecision(formData: FormData, decision: Decision) {
     );
   }
 
+  const pdfServiceUrl = process.env.PDF_SERVICE_URL;
+  if (pdfServiceUrl) {
+    try {
+      const res = await fetch(`${pdfServiceUrl}/generate-final-pdf`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ invoice_id: invoiceId }),
+        cache: "no-store",
+      });
+      if (!res.ok) {
+        const detail = await res.text().catch(() => "");
+        console.error("pdf-service responded", res.status, detail);
+      }
+    } catch (err) {
+      console.error("pdf-service call failed", err);
+    }
+  } else {
+    console.warn("PDF_SERVICE_URL no configurada; se omite generación del PDF aprobado");
+  }
+
   revalidatePath(`/facturas/${invoiceId}`);
   revalidatePath("/mis-aprobaciones");
   revalidatePath("/facturas");
