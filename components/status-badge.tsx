@@ -47,7 +47,7 @@ export function StatusBadge({
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-full font-medium ring-1 ring-inset whitespace-nowrap",
+        "inline-flex shrink-0 items-center rounded-full font-medium ring-1 ring-inset whitespace-nowrap",
         sizeClass,
         item.className,
         className,

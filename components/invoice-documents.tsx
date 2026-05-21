@@ -210,7 +210,7 @@ function SegmentedControl({
   ];
 
   return (
-    <div className="inline-flex items-center rounded-lg border bg-muted/40 p-0.5">
+    <div className="flex w-full sm:inline-flex sm:w-auto items-center rounded-lg border bg-muted/40 p-0.5">
       {items.map((item) => {
         const active = mode === item.value;
         return (
@@ -221,7 +221,7 @@ function SegmentedControl({
             disabled={!item.enabled}
             title={item.hint}
             className={cn(
-              "inline-flex items-center gap-1.5 rounded-md px-3 min-h-9 text-xs font-medium transition-colors",
+              "inline-flex flex-1 sm:flex-none items-center justify-center gap-1.5 rounded-md px-2 sm:px-3 min-h-9 text-xs font-medium transition-colors",
               "disabled:opacity-40 disabled:cursor-not-allowed",
               active
                 ? "bg-white text-neutral-900 shadow-[0_1px_2px_0_rgb(0_0_0/0.06)]"
