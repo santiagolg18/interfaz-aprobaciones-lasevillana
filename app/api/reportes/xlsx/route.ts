@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import * as XLSX from "xlsx";
 import { createClient } from "@/lib/supabase/server";
-import { formatDate, formatDateTime, formatCOP } from "@/lib/format";
+import { formatDate, formatDateTime } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
@@ -104,7 +104,7 @@ export async function GET(req: NextRequest) {
 
     // Get rejection details from approvals
     const invoiceNumbers = (invoices ?? []).map((i) => i.invoice_number);
-    let approvalDetails: Record<string, { approver: string; notes: string; date: string }> = {};
+    const approvalDetails: Record<string, { approver: string; notes: string; date: string }> = {};
 
     if (invoiceNumbers.length > 0) {
       const { data: rejApprovals } = await supabase
