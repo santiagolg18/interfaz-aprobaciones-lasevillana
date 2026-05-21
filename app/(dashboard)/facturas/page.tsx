@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Paperclip, Receipt, X } from "lucide-react";
+import { Paperclip, Plus, Receipt, X } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -20,6 +20,7 @@ import { PageHeader } from "@/components/page-header";
 import { Pagination } from "@/components/pagination";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/auth/current-user";
 import { formatCOP, formatDateTime } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
@@ -86,6 +87,8 @@ export default async function FacturasPage({
   const sp = await searchParams;
   const { status, supplier_id, from, to, q, min, max, po, quick, sort, page } = sp;
   const supabase = await createClient();
+  const me = await getCurrentUser();
+  const canCreateInvoice = me?.role === "admin" || me?.role === "purchasing";
 
   const currentSort = sort && /^(received|amount)_(asc|desc)$/.test(sort)
     ? sort
@@ -323,6 +326,16 @@ export default async function FacturasPage({
       <PageHeader
         title="Facturas"
         description="Facturas recibidas y su estado de aprobación."
+        actions={
+          canCreateInvoice ? (
+            <Button asChild size="sm">
+              <Link href="/facturas/nueva">
+                <Plus className="size-4" />
+                Nueva factura
+              </Link>
+            </Button>
+          ) : null
+        }
       />
 
       <InvoiceQuickFilters
