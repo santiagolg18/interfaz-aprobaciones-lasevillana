@@ -1,4 +1,4 @@
-import { ExternalLink, FileWarning } from "lucide-react";
+import { ExternalLink, FileText, FileWarning } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -50,12 +50,18 @@ export function PdfViewer({
           ) : null}
         </div>
       ) : null}
-      {/* Mobile-only prominent open button — iframes for PDFs are unreliable on iOS Safari */}
-      <div className="md:hidden border-b bg-white p-3">
-        <Button asChild size="lg" className="w-full">
+      {/* Mobile: card limpia con botón. Iframes de PDF son inconsistentes en iOS Safari y Chrome móvil. */}
+      <div className="md:hidden flex flex-col items-center gap-3 bg-white p-5">
+        <div className="flex size-12 items-center justify-center rounded-lg bg-rose-50 text-rose-600">
+          <FileText className="size-6" />
+        </div>
+        <div className="text-center text-sm font-medium text-neutral-900 break-all">
+          {title}
+        </div>
+        <Button asChild size="lg" className="w-full h-12">
           <a href={src} target="_blank" rel="noreferrer">
             <ExternalLink className="size-4" />
-            Abrir {title} en pantalla completa
+            Abrir en pantalla completa
           </a>
         </Button>
       </div>
@@ -63,7 +69,7 @@ export function PdfViewer({
         src={src}
         title={title}
         className={cn(
-          "w-full flex-1",
+          "hidden md:block w-full flex-1",
           frameClassName ?? "h-[60vh] sm:h-[70vh] lg:h-[78vh]",
         )}
         loading="lazy"

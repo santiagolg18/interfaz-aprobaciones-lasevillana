@@ -41,7 +41,7 @@ export function InvoiceDocuments({
 }) {
   const isLarge = useIsLargeScreen();
   const hasPO = Boolean(poUrl);
-  const compareEnabled = (hasPO || canManagePO) && isLarge;
+  const compareEnabled = hasPO || canManagePO;
   const [userMode, setUserMode] = useState<Mode | null>(null);
   const defaultMode: Mode =
     isLarge && (hasPO || canManagePO) ? "compare" : "invoice";
@@ -133,7 +133,7 @@ export function InvoiceDocuments({
 
   return (
     <div className="rounded-lg border bg-white shadow-[0_1px_2px_0_rgb(0_0_0/0.03)]">
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b px-3 py-2">
+      <div className="sticky top-[calc(3.5rem+env(safe-area-inset-top))] lg:top-0 z-20 flex flex-wrap items-center justify-between gap-2 rounded-t-lg border-b bg-white px-3 py-2">
         <div className="flex items-center gap-3">
           <h2 className="text-sm font-semibold text-neutral-900">Documentos</h2>
           {!hasPO ? (
@@ -204,7 +204,7 @@ function SegmentedControl({
       icon: <Columns2 className="size-3.5" />,
       enabled: compareEnabled,
       hint: !compareEnabled
-        ? "Sólo disponible en pantallas anchas con ambos documentos"
+        ? "Adjunta una orden de compra para comparar"
         : undefined,
     },
   ];

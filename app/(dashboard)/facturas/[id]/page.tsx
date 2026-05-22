@@ -1,5 +1,5 @@
 import { notFound, redirect } from "next/navigation";
-import { CheckCircle2, FileCheck2, UserX, XCircle } from "lucide-react";
+import { CheckCircle2, Clock, FileCheck2, UserX, XCircle } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -82,6 +82,16 @@ export default async function FacturaDetallePage({ params }: { params: Params })
 
   const hasApprovals = (approvals ?? []).length > 0;
 
+  // En móvil, ordenar mi aprobación primero para que el usuario actual la vea de inmediato.
+  const myApproverId = me.profile?.id ?? null;
+  const sortedApprovals = myApproverId
+    ? [...(approvals ?? [])].sort((a, b) => {
+        if (a.approver_id === myApproverId) return -1;
+        if (b.approver_id === myApproverId) return 1;
+        return 0;
+      })
+    : (approvals ?? []);
+
   const [originalUrl, finalUrl, poUrl] = await Promise.all([
     getSignedStorageUrl(
       invoice.pdf_storage_path ?? `${invoice.invoice_number}.pdf`,
@@ -118,21 +128,38 @@ export default async function FacturaDetallePage({ params }: { params: Params })
         }
       />
 
+      {showMobileStickyBar ? (
+        <div className="lg:hidden flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
+          <div className="flex size-9 shrink-0 items-center justify-center rounded-md bg-amber-100 text-amber-700">
+            <Clock className="size-4" />
+          </div>
+          <div className="min-w-0 leading-tight">
+            <div className="text-sm font-semibold text-amber-900">
+              Tu aprobación está pendiente
+            </div>
+            <div className="text-xs text-amber-800/80 mt-0.5">
+              Revisa los documentos y decide con los botones de abajo.
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-lg border bg-white px-4 py-3 shadow-[0_1px_2px_0_rgb(0_0_0/0.03)]">
         <StatusBadge status={invoice.status} size="md" />
-        <div className="flex items-center gap-2 text-sm">
+        <div className="flex min-w-0 items-center gap-2 text-sm">
           <span className="text-muted-foreground">Aprobaciones</span>
           <ApprovalProgress
             current={invoice.current_approvals}
             required={invoice.required_approvals}
             status={invoice.status}
             size="md"
+            className="shrink-0"
           />
         </div>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
-        <div className="lg:col-span-2 space-y-4">
+        <div className="order-2 lg:order-none lg:col-span-2 space-y-4">
           <InvoiceDocuments
             invoiceId={invoice.id}
             invoiceNumber={invoice.invoice_number}
@@ -144,9 +171,11 @@ export default async function FacturaDetallePage({ params }: { params: Params })
           />
 
           <div className="rounded-lg border bg-white overflow-hidden shadow-[0_1px_2px_0_rgb(0_0_0/0.03)]">
-            <div className="flex items-center justify-between px-4 py-3 border-b">
-              <h2 className="text-sm font-semibold text-neutral-900">Aprobaciones</h2>
-              <div className="flex items-center gap-3">
+            <div className="flex items-center justify-between gap-2 px-4 py-3 border-b">
+              <h2 className="min-w-0 truncate text-sm font-semibold text-neutral-900">
+                Aprobaciones
+              </h2>
+              <div className="flex shrink-0 items-center gap-3">
                 {canConfigureApprovers && hasApprovals ? (
                   <ConfigureApproversDialog
                     invoiceId={invoice.id}
@@ -186,31 +215,51 @@ export default async function FacturaDetallePage({ params }: { params: Params })
               <>
                 {/* Mobile: cards */}
                 <ul className="md:hidden divide-y">
-                  {(approvals ?? []).map((a) => (
-                    <li key={a.id} className="p-4 space-y-1.5">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <div className="font-medium text-neutral-900 truncate">
-                            {a.approvers?.name ?? "—"}
+                  {sortedApprovals.map((a) => {
+                    const isMe = a.approver_id === myApproverId;
+                    const meHighlight = isMe
+                      ? a.status === "pending"
+                        ? "bg-amber-50/50 border-l-2 border-l-amber-400"
+                        : a.status === "approved"
+                          ? "bg-emerald-50/40 border-l-2 border-l-emerald-400"
+                          : "bg-rose-50/40 border-l-2 border-l-rose-400"
+                      : "";
+                    return (
+                      <li
+                        key={a.id}
+                        className={`p-4 space-y-1.5 ${meHighlight}`}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-medium text-neutral-900 truncate">
+                                {a.approvers?.name ?? "—"}
+                              </span>
+                              {isMe ? (
+                                <span className="shrink-0 rounded-full bg-neutral-900 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
+                                  Tú
+                                </span>
+                              ) : null}
+                            </div>
+                            <div className="text-xs text-muted-foreground truncate">
+                              {a.approvers?.email ?? "—"}
+                            </div>
                           </div>
-                          <div className="text-xs text-muted-foreground truncate">
-                            {a.approvers?.email ?? "—"}
+                          <StatusBadge status={a.status} className="shrink-0" />
+                        </div>
+                        {a.approved_at ? (
+                          <div className="text-xs text-muted-foreground">
+                            {formatDateTime(a.approved_at)}
                           </div>
-                        </div>
-                        <StatusBadge status={a.status} />
-                      </div>
-                      {a.approved_at ? (
-                        <div className="text-xs text-muted-foreground">
-                          {formatDateTime(a.approved_at)}
-                        </div>
-                      ) : null}
-                      {a.notes ? (
-                        <div className="text-xs text-neutral-700 whitespace-pre-wrap break-words">
-                          {a.notes}
-                        </div>
-                      ) : null}
-                    </li>
-                  ))}
+                        ) : null}
+                        {a.notes ? (
+                          <div className="text-xs text-neutral-700 whitespace-pre-wrap break-words">
+                            {a.notes}
+                          </div>
+                        ) : null}
+                      </li>
+                    );
+                  })}
                 </ul>
 
                 {/* Desktop: table */}
@@ -226,10 +275,19 @@ export default async function FacturaDetallePage({ params }: { params: Params })
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {(approvals ?? []).map((a) => (
+                      {(approvals ?? []).map((a) => {
+                        const isMe = a.approver_id === myApproverId;
+                        return (
                         <TableRow key={a.id}>
                           <TableCell className="font-medium text-neutral-900">
-                            {a.approvers?.name ?? "—"}
+                            <span className="inline-flex items-center gap-1.5">
+                              {a.approvers?.name ?? "—"}
+                              {isMe ? (
+                                <span className="rounded-full bg-neutral-900 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
+                                  Tú
+                                </span>
+                              ) : null}
+                            </span>
                           </TableCell>
                           <TableCell className="text-sm text-muted-foreground">
                             {a.approvers?.email ?? "—"}
@@ -244,7 +302,8 @@ export default async function FacturaDetallePage({ params }: { params: Params })
                             {a.notes ?? "—"}
                           </TableCell>
                         </TableRow>
-                      ))}
+                        );
+                      })}
                     </TableBody>
                   </Table>
                 </div>
@@ -253,7 +312,7 @@ export default async function FacturaDetallePage({ params }: { params: Params })
           </div>
         </div>
 
-        <aside className="space-y-4">
+        <aside className="order-1 lg:order-none space-y-4">
           {myApproval && myApproval.status === "pending" ? (
             <ApprovalActions invoiceId={invoice.id} approvalId={myApproval.id} />
           ) : null}
