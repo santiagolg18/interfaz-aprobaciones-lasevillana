@@ -118,8 +118,8 @@ export default async function FacturasPage({
 
   if (status) query = query.eq("status", status);
   if (supplier_id) query = query.eq("supplier_id", supplier_id);
-  if (from) query = query.gte("received_at", `${from}T00:00:00Z`);
-  if (to) query = query.lte("received_at", `${to}T23:59:59Z`);
+  if (from) query = query.gte("received_at", `${from}T00:00:00-05:00`);
+  if (to) query = query.lte("received_at", `${to}T23:59:59-05:00`);
   if (q) {
     const pattern = `%${q.trim()}%`;
     query = query.or(
@@ -151,8 +151,8 @@ export default async function FacturasPage({
     .select("total_amount", { count: "exact" });
   if (status) totalsQuery = totalsQuery.eq("status", status);
   if (supplier_id) totalsQuery = totalsQuery.eq("supplier_id", supplier_id);
-  if (from) totalsQuery = totalsQuery.gte("received_at", `${from}T00:00:00Z`);
-  if (to) totalsQuery = totalsQuery.lte("received_at", `${to}T23:59:59Z`);
+  if (from) totalsQuery = totalsQuery.gte("received_at", `${from}T00:00:00-05:00`);
+  if (to) totalsQuery = totalsQuery.lte("received_at", `${to}T23:59:59-05:00`);
   if (q) {
     const pattern = `%${q.trim()}%`;
     totalsQuery = totalsQuery.or(
@@ -187,8 +187,8 @@ export default async function FacturasPage({
       .from("invoices")
       .select("id", { count: "exact", head: true });
     if (supplier_id) b = b.eq("supplier_id", supplier_id);
-    if (from) b = b.gte("received_at", `${from}T00:00:00Z`);
-    if (to) b = b.lte("received_at", `${to}T23:59:59Z`);
+    if (from) b = b.gte("received_at", `${from}T00:00:00-05:00`);
+    if (to) b = b.lte("received_at", `${to}T23:59:59-05:00`);
     if (q) {
       const pattern = `%${q.trim()}%`;
       b = b.or(

@@ -81,9 +81,9 @@ export default async function MisAprobacionesPage({
     historyQuery = historyQuery.eq("status", history_status);
   }
   if (history_from)
-    historyQuery = historyQuery.gte("approved_at", `${history_from}T00:00:00Z`);
+    historyQuery = historyQuery.gte("approved_at", `${history_from}T00:00:00-05:00`);
   if (history_to)
-    historyQuery = historyQuery.lte("approved_at", `${history_to}T23:59:59Z`);
+    historyQuery = historyQuery.lte("approved_at", `${history_to}T23:59:59-05:00`);
 
   historyQuery = historyQuery.range(offset, offset + HISTORY_PAGE_SIZE - 1);
 

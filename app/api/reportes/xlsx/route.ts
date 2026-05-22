@@ -8,8 +8,8 @@ export const dynamic = "force-dynamic";
 
 function dateRange(from?: string | null, to?: string | null) {
   return {
-    fromIso: from ? `${from}T00:00:00Z` : null,
-    toIso: to ? `${to}T23:59:59Z` : null,
+    fromIso: from ? `${from}T00:00:00-05:00` : null,
+    toIso: to ? `${to}T23:59:59-05:00` : null,
   };
 }
 

@@ -1,4 +1,4 @@
-import { format, formatDistanceToNow } from "date-fns";
+import { formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
 
 const cop = new Intl.NumberFormat("es-CO", {
@@ -14,14 +14,52 @@ export function formatCOP(value: number | string | null | undefined) {
   return cop.format(n);
 }
 
+const BOGOTA_TZ = "America/Bogota";
+const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
+
+const bogotaDateFmt = new Intl.DateTimeFormat("en-CA", {
+  timeZone: BOGOTA_TZ,
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
+
+const bogotaDateTimeFmt = new Intl.DateTimeFormat("en-CA", {
+  timeZone: BOGOTA_TZ,
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+  hour12: false,
+});
+
+function partsToObject(parts: Intl.DateTimeFormatPart[]) {
+  const o: Record<string, string> = {};
+  for (const p of parts) if (p.type !== "literal") o[p.type] = p.value;
+  return o;
+}
+
 export function formatDate(value: string | Date | null | undefined) {
   if (!value) return "—";
-  return format(new Date(value), "dd/MM/yyyy", { locale: es });
+  if (typeof value === "string" && DATE_ONLY.test(value)) {
+    const [y, m, d] = value.split("-");
+    return `${d}/${m}/${y}`;
+  }
+  const d = typeof value === "string" ? new Date(value) : value;
+  if (Number.isNaN(d.getTime())) return "—";
+  const p = partsToObject(bogotaDateFmt.formatToParts(d));
+  return `${p.day}/${p.month}/${p.year}`;
 }
 
 export function formatDateTime(value: string | Date | null | undefined) {
   if (!value) return "—";
-  return format(new Date(value), "dd/MM/yyyy HH:mm", { locale: es });
+  const d = typeof value === "string" ? new Date(value) : value;
+  if (Number.isNaN(d.getTime())) return "—";
+  const p = partsToObject(bogotaDateTimeFmt.formatToParts(d));
+  // hour: "2-digit" + hour12: false puede dar "24" a la medianoche en algunos runtimes; normalizamos.
+  const hour = p.hour === "24" ? "00" : p.hour;
+  return `${p.day}/${p.month}/${p.year} ${hour}:${p.minute}`;
 }
 
 export function timeAgo(value: string | Date | null | undefined) {
