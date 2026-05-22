@@ -57,8 +57,8 @@ export default async function DashboardPage({
   searchParams: SearchParams;
 }) {
   const { from, to } = await searchParams;
-  const fromIso = from ? `${from}T00:00:00Z` : null;
-  const toIso = to ? `${to}T23:59:59Z` : null;
+  const fromIso = from ? `${from}T00:00:00Z` : undefined;
+  const toIso = to ? `${to}T23:59:59Z` : undefined;
 
   const supabase = await createClient();
 
