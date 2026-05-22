@@ -19,6 +19,10 @@ import { EmptyState } from "@/components/empty-state";
 import { PageHeader } from "@/components/page-header";
 import { Pagination } from "@/components/pagination";
 import { Button } from "@/components/ui/button";
+import {
+  InvoiceNotesPopover,
+  type InvoiceNote,
+} from "@/components/invoice-notes-popover";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/auth/current-user";
 import { formatCOP, formatDateTime } from "@/lib/format";
@@ -233,6 +237,33 @@ export default async function FacturasPage({
   const { data: invoices, error, count } = invoicesResult;
   const { data: suppliers } = suppliersResult;
   const { data: totalsData } = totalsResult;
+
+  // Notas de aprobadores para las facturas visibles en esta página. Query separada
+  // para no inflar la principal ni complicar la paginación con joins.
+  const invoiceIds = (invoices ?? []).map((i) => i.id);
+  const { data: notedApprovals } = invoiceIds.length
+    ? await supabase
+        .from("approvals")
+        .select("invoice_id, status, notes, approved_at, approvers(name)")
+        .in("invoice_id", invoiceIds)
+        .not("notes", "is", null)
+        .neq("notes", "")
+        .order("approved_at", { ascending: true })
+    : { data: [] };
+
+  const notesByInvoice = new Map<string, InvoiceNote[]>();
+  for (const a of notedApprovals ?? []) {
+    if (!a.invoice_id || !a.notes) continue;
+    const approver = a.approvers as { name: string } | null;
+    const list = notesByInvoice.get(a.invoice_id) ?? [];
+    list.push({
+      approverName: approver?.name ?? "—",
+      status: a.status,
+      approvedAt: a.approved_at,
+      notes: a.notes,
+    });
+    notesByInvoice.set(a.invoice_id, list);
+  }
 
   const totalCount = count ?? 0;
   const sumTotal = (totalsData ?? []).reduce(
@@ -472,12 +503,19 @@ export default async function FacturasPage({
                       value={inv.total_amount}
                       className="text-xl font-bold text-neutral-900"
                     />
-                    <ApprovalProgress
-                      current={inv.current_approvals}
-                      required={inv.required_approvals}
-                      status={inv.status}
-                      size="md"
-                    />
+                    <div className="flex items-center gap-2">
+                      {notesByInvoice.has(inv.id) ? (
+                        <InvoiceNotesPopover
+                          notes={notesByInvoice.get(inv.id)!}
+                        />
+                      ) : null}
+                      <ApprovalProgress
+                        current={inv.current_approvals}
+                        required={inv.required_approvals}
+                        status={inv.status}
+                        size="md"
+                      />
+                    </div>
                   </div>
                   <div className="mt-1 text-xs text-muted-foreground">
                     Recibida {formatDateTime(inv.received_at)}
@@ -524,6 +562,7 @@ export default async function FacturasPage({
                   </TableHead>
                   <TableHead>Estado</TableHead>
                   <TableHead>Progreso</TableHead>
+                  <TableHead className="w-12 text-center">Notas</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -564,6 +603,13 @@ export default async function FacturasPage({
                         required={inv.required_approvals}
                         status={inv.status}
                       />
+                    </TableCell>
+                    <TableCell className="w-12 text-center">
+                      {notesByInvoice.has(inv.id) ? (
+                        <InvoiceNotesPopover
+                          notes={notesByInvoice.get(inv.id)!}
+                        />
+                      ) : null}
                     </TableCell>
                   </TableRow>
                 ))}

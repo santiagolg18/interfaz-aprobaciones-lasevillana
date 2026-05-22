@@ -39,12 +39,24 @@ export async function updateSession(request: NextRequest) {
     },
   );
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  let user: Awaited<ReturnType<typeof supabase.auth.getUser>>["data"]["user"] = null;
+  let authNetworkError = false;
+  try {
+    const { data } = await supabase.auth.getUser();
+    user = data.user;
+  } catch (err) {
+    authNetworkError = true;
+    console.warn("middleware: supabase.auth.getUser failed (treating as transient)", err);
+  }
 
   const pathname = request.nextUrl.pathname;
   const isPublic = PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));
+
+  // En blip de red: permitir el request actual. Los guards de página (getCurrentUser)
+  // reintentan y la RLS/route handlers son la siguiente línea de defensa.
+  if (authNetworkError) {
+    return response;
+  }
 
   if (!user && !isPublic) {
     const url = request.nextUrl.clone();
@@ -54,11 +66,23 @@ export async function updateSession(request: NextRequest) {
   }
 
   if (user) {
-    const { data: profile } = await supabase
-      .from("approvers")
-      .select("role, is_active")
-      .or(`auth_user_id.eq.${user.id},email.eq.${user.email ?? ""}`)
-      .maybeSingle();
+    let profile: { role: string | null; is_active: boolean | null } | null = null;
+    let profileNetworkError = false;
+    try {
+      const { data } = await supabase
+        .from("approvers")
+        .select("role, is_active")
+        .or(`auth_user_id.eq.${user.id},email.eq.${user.email ?? ""}`)
+        .maybeSingle();
+      profile = data;
+    } catch (err) {
+      profileNetworkError = true;
+      console.warn("middleware: approvers lookup failed (treating as transient)", err);
+    }
+
+    if (profileNetworkError) {
+      return response;
+    }
 
     const role = profile?.is_active === false ? null : (profile?.role ?? null);
 

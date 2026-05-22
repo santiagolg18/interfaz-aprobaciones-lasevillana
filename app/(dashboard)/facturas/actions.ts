@@ -264,6 +264,10 @@ export async function createManualInvoice(formData: FormData) {
     })),
   );
   if (approvalsInsertError) {
+    // Rollback: el FK approvals.invoice_id es ON DELETE CASCADE, así que borrar la
+    // factura limpia cualquier approval parcialmente insertada antes del fallo.
+    await admin.from("invoices").delete().eq("id", invoiceId);
+    await admin.storage.from(BUCKET).remove([objectPath]);
     return redirectToNew(approvalsInsertError.message, formState);
   }
 

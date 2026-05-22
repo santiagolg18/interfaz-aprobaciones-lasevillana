@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/auth/current-user";
+import { triggerPdfGeneration } from "@/lib/pdf-service";
 
 type Decision = "approve" | "reject";
 
@@ -31,7 +32,6 @@ async function recordDecision(formData: FormData, decision: Decision) {
   }
 
   const supabase = await createClient();
-  const newStatus = decision === "approve" ? "approved" : "rejected";
 
   const hdrs = await headers();
   const ip =
@@ -39,97 +39,42 @@ async function recordDecision(formData: FormData, decision: Decision) {
     hdrs.get("x-real-ip") ??
     null;
 
-  // Guard: solo permite actualizar la fila si está pendiente y es del approver actual.
-  const { data: updated, error: updateError } = await supabase
-    .from("approvals")
-    .update({
-      status: newStatus,
-      approved_at: new Date().toISOString(),
-      notes,
-      ip_address: ip,
-    })
-    .eq("id", approvalId)
-    .eq("approver_id", me.profile.id)
-    .eq("status", "pending")
-    .select("id")
-    .maybeSingle();
+  // RPC atómico: bloquea la factura con FOR UPDATE, actualiza la approval, recuenta y
+  // recalcula el status de la factura en una sola transacción. Evita la race condition
+  // cuando dos approvers actúan al mismo tiempo. El approver se deriva de auth.uid()
+  // dentro de la función — no se acepta como parámetro para evitar suplantación.
+  const { data: rpcRows, error: rpcError } = await supabase.rpc(
+    "record_invoice_decision",
+    {
+      p_approval_id: approvalId,
+      p_decision: decision,
+      p_notes: notes ?? undefined,
+      p_ip: ip ?? undefined,
+    },
+  );
 
-  if (updateError) {
-    redirect(
-      `/facturas/${invoiceId}?error=${encodeURIComponent(updateError.message)}`,
-    );
+  if (rpcError) {
+    const msg = rpcError.message;
+    let friendly = msg;
+    if (msg.includes("approval_not_pending_or_not_yours")) {
+      friendly = "Esta aprobación ya no está disponible";
+    } else if (msg.includes("not_an_active_approver")) {
+      friendly = "Tu cuenta no tiene permisos de aprobador activo";
+    } else if (msg.includes("not_authenticated")) {
+      friendly = "Sesión inválida";
+    }
+    redirect(`/facturas/${invoiceId}?error=${encodeURIComponent(friendly)}`);
   }
-  if (!updated) {
+
+  const result = rpcRows?.[0];
+  if (!result) {
     redirect(
       `/facturas/${invoiceId}?error=${encodeURIComponent("Esta aprobación ya no está disponible")}`,
     );
   }
 
-  // Recalcular el estado agregado de la factura.
-  const [{ count: approvedCount }, { count: rejectedCount }, { data: invoice }] =
-    await Promise.all([
-      supabase
-        .from("approvals")
-        .select("id", { count: "exact", head: true })
-        .eq("invoice_id", invoiceId)
-        .eq("status", "approved"),
-      supabase
-        .from("approvals")
-        .select("id", { count: "exact", head: true })
-        .eq("invoice_id", invoiceId)
-        .eq("status", "rejected"),
-      supabase
-        .from("invoices")
-        .select("required_approvals")
-        .eq("id", invoiceId)
-        .maybeSingle(),
-    ]);
-
-  const required = invoice?.required_approvals ?? 1;
-  let invoiceStatus: "pending" | "approved" | "rejected" = "pending";
-  let completedAt: string | null = null;
-
-  if ((rejectedCount ?? 0) > 0) {
-    invoiceStatus = "rejected";
-    completedAt = new Date().toISOString();
-  } else if ((approvedCount ?? 0) >= required) {
-    invoiceStatus = "approved";
-    completedAt = new Date().toISOString();
-  }
-
-  const { error: invoiceError } = await supabase
-    .from("invoices")
-    .update({
-      current_approvals: approvedCount ?? 0,
-      status: invoiceStatus,
-      completed_at: completedAt,
-    })
-    .eq("id", invoiceId);
-
-  if (invoiceError) {
-    redirect(
-      `/facturas/${invoiceId}?error=${encodeURIComponent(invoiceError.message)}`,
-    );
-  }
-
-  const pdfServiceUrl = process.env.PDF_SERVICE_URL;
-  if (pdfServiceUrl) {
-    try {
-      const res = await fetch(`${pdfServiceUrl}/generate-final-pdf`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ invoice_id: invoiceId }),
-        cache: "no-store",
-      });
-      if (!res.ok) {
-        const detail = await res.text().catch(() => "");
-        console.error("pdf-service responded", res.status, detail);
-      }
-    } catch (err) {
-      console.error("pdf-service call failed", err);
-    }
-  } else {
-    console.warn("PDF_SERVICE_URL no configurada; se omite generación del PDF aprobado");
+  if (result.new_status === "approved") {
+    await triggerPdfGeneration(result.invoice_id);
   }
 
   revalidatePath(`/facturas/${invoiceId}`);
@@ -333,6 +278,13 @@ export async function configureInvoiceApprovers(formData: FormData) {
     redirect(
       `/facturas/${invoiceId}?error=${encodeURIComponent(invoiceUpdateError.message)}`,
     );
+  }
+
+  // C3: si configurar aprobadores deja la factura ya en 'approved' (porque las
+  // approvals existentes ya cumplían el umbral), dispara el pdf-service. Sin esto,
+  // la factura quedaba 'approved' pero sin final_pdf_path.
+  if (invoiceStatus === "approved") {
+    await triggerPdfGeneration(invoiceId);
   }
 
   if (effectiveSupplierId) {

@@ -29,19 +29,6 @@ export function timeAgo(value: string | Date | null | undefined) {
   return formatDistanceToNow(new Date(value), { locale: es, addSuffix: true });
 }
 
-export function storageUrl(path: string | null | undefined, bucket = "invoices") {
-  if (!path) return null;
-  if (/^https?:\/\//i.test(path)) return path;
-  const base = process.env.NEXT_PUBLIC_SUPABASE_URL!.replace(/\/$/, "");
-  let clean = path.replace(/^\/+/, "");
-  // El workflow n8n guarda el path con el nombre del bucket al inicio (p.ej.
-  // "invoices/F44262051.pdf"). Evitamos duplicar el prefijo al construir la URL.
-  if (clean.toLowerCase().startsWith(`${bucket.toLowerCase()}/`)) {
-    clean = clean.slice(bucket.length + 1);
-  }
-  return `${base}/storage/v1/object/public/${bucket}/${clean}`;
-}
-
 export function humanDuration(fromIso: string, toIso: string) {
   const ms = new Date(toIso).getTime() - new Date(fromIso).getTime();
   if (!Number.isFinite(ms) || ms <= 0) return "—";

@@ -20,7 +20,8 @@ import { ApprovalActions } from "@/components/approval-actions";
 import { ConfigureApproversDialog } from "@/components/configure-approvers-dialog";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/auth/current-user";
-import { formatDate, formatDateTime, storageUrl } from "@/lib/format";
+import { formatDate, formatDateTime } from "@/lib/format";
+import { getSignedStorageUrl } from "@/lib/supabase/storage";
 import { configureInvoiceApprovers } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -81,11 +82,13 @@ export default async function FacturaDetallePage({ params }: { params: Params })
 
   const hasApprovals = (approvals ?? []).length > 0;
 
-  const originalUrl = storageUrl(
-    invoice.pdf_storage_path ?? `${invoice.invoice_number}.pdf`,
-  );
-  const finalUrl = storageUrl(invoice.final_pdf_path);
-  const poUrl = storageUrl(invoice.po_storage_path);
+  const [originalUrl, finalUrl, poUrl] = await Promise.all([
+    getSignedStorageUrl(
+      invoice.pdf_storage_path ?? `${invoice.invoice_number}.pdf`,
+    ),
+    getSignedStorageUrl(invoice.final_pdf_path),
+    getSignedStorageUrl(invoice.po_storage_path),
+  ]);
 
   const showMobileStickyBar = Boolean(myApproval && myApproval.status === "pending");
 

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import * as XLSX from "xlsx";
 import { createClient } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/auth/current-user";
 import { formatDate, formatDateTime } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
@@ -26,6 +27,14 @@ function applyDateFilter<T extends object>(
 }
 
 export async function GET(req: NextRequest) {
+  const me = await getCurrentUser();
+  if (!me) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  if (me.role !== "admin" && me.role !== "purchasing") {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
   const { searchParams } = req.nextUrl;
   const reporte = searchParams.get("reporte") ?? "completo";
   const from = searchParams.get("from");

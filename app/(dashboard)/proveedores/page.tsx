@@ -45,11 +45,13 @@ export default async function ProveedoresPage({
 
   const supabase = await createClient();
 
-  // Si se filtra por un aprobador específico, primero obtenemos los IDs de
-  // proveedores asignados (no se puede hacer fácilmente en una sola query
-  // sin perder el conteo agregado de approval_rules).
+  // Si se filtra por un aprobador específico o por "con/sin aprobadores",
+  // necesitamos los supplier_ids con reglas para aplicar el filtro al query
+  // (antes de paginar) y para calcular el stat global "sin aprobadores".
   let restrictToIds: string[] | null = null;
+  let excludeIds: string[] | null = null;
   let approverFilter: { id: string; name: string } | null = null;
+
   if (approverId) {
     const [rulesRes, approverRes] = await Promise.all([
       supabase
@@ -62,8 +64,29 @@ export default async function ProveedoresPage({
         .eq("id", approverId)
         .maybeSingle(),
     ]);
-    restrictToIds = (rulesRes.data ?? []).map((r) => r.supplier_id);
+    restrictToIds = Array.from(
+      new Set((rulesRes.data ?? []).map((r) => r.supplier_id)),
+    );
     approverFilter = approverRes.data ?? null;
+  }
+
+  // Cargamos siempre los supplier_ids con reglas: se usan para el filtro
+  // "con/sin aprobadores" y para el stat global "Sin aprobadores".
+  const { data: allRulesRows } = await supabase
+    .from("approval_rules")
+    .select("supplier_id");
+  const supplierIdsWithRules = Array.from(
+    new Set((allRulesRows ?? []).map((r) => r.supplier_id)),
+  );
+
+  if (approversFilter === "with") {
+    const intersect =
+      restrictToIds !== null
+        ? restrictToIds.filter((id) => supplierIdsWithRules.includes(id))
+        : supplierIdsWithRules;
+    restrictToIds = intersect;
+  } else if (approversFilter === "without") {
+    excludeIds = supplierIdsWithRules;
   }
 
   let query = supabase
@@ -88,38 +111,29 @@ export default async function ProveedoresPage({
       query = query.in("id", restrictToIds);
     }
   }
+  if (excludeIds !== null && excludeIds.length > 0) {
+    query = query.not("id", "in", `(${excludeIds.join(",")})`);
+  }
 
   const from = (page - 1) * PAGE_SIZE;
   const to = from + PAGE_SIZE - 1;
   query = query.range(from, to);
 
   const { data: suppliers, error, count } = await query;
-
-  // Filtro client-side por "con/sin aprobadores" (Supabase no permite filtrar
-  // por agregados en la misma query fácilmente)
-  const filtered = (suppliers ?? []).filter((s) => {
-    if (!approversFilter) return true;
-    const rulesCount = Array.isArray(s.approval_rules)
-      ? (s.approval_rules[0]?.count ?? 0)
-      : 0;
-    if (approversFilter === "with") return rulesCount > 0;
-    if (approversFilter === "without") return rulesCount === 0;
-    return true;
-  });
+  const filtered = suppliers ?? [];
 
   // Stats globales (sin filtros) — pequeñas, en paralelo
-  const [{ count: totalAll }, { count: totalPermanente }, { count: totalSinAprobadores }] =
-    await Promise.all([
-      supabase.from("suppliers").select("id", { count: "exact", head: true }),
-      supabase
-        .from("suppliers")
-        .select("id", { count: "exact", head: true })
-        .eq("tipo", "P"),
-      supabase
-        .from("suppliers")
-        .select("id, approval_rules!left(id)", { count: "exact", head: true })
-        .is("approval_rules.id", null),
-    ]);
+  const [{ count: totalAll }, { count: totalPermanente }] = await Promise.all([
+    supabase.from("suppliers").select("id", { count: "exact", head: true }),
+    supabase
+      .from("suppliers")
+      .select("id", { count: "exact", head: true })
+      .eq("tipo", "P"),
+  ]);
+  const totalSinAprobadores = Math.max(
+    0,
+    (totalAll ?? 0) - supplierIdsWithRules.length,
+  );
 
   const totalFiltered = count ?? 0;
   const hasFilters = Boolean(q || tipo || approversFilter || approverId);
