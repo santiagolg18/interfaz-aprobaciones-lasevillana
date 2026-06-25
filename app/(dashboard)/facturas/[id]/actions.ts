@@ -4,9 +4,10 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
-import { getCurrentUser } from "@/lib/auth/current-user";
+import { getCurrentUser, canApproveInvoices } from "@/lib/auth/current-user";
 import { triggerPdfGeneration } from "@/lib/pdf-service";
 import { logInvoiceActivity } from "@/lib/audit/log-activity";
+import { normalizeCascade } from "@/lib/approvals/cascade";
 import type { TablesUpdate } from "@/lib/database.types";
 
 type Decision = "approve" | "reject";
@@ -22,14 +23,9 @@ async function recordDecision(formData: FormData, decision: Decision) {
 
   const me = await getCurrentUser();
   if (!me || !me.profile) redirect("/login");
-  if (me.role !== "approver") {
+  if (!canApproveInvoices(me.profile)) {
     redirect(
-      `/facturas/${invoiceId}?error=${encodeURIComponent("Solo los aprobadores pueden registrar decisiones")}`,
-    );
-  }
-  if (me.profile.is_active === false) {
-    redirect(
-      `/facturas/${invoiceId}?error=${encodeURIComponent("Tu cuenta está inactiva")}`,
+      `/facturas/${invoiceId}?error=${encodeURIComponent("No tienes permiso para aprobar facturas")}`,
     );
   }
 
@@ -143,6 +139,21 @@ export async function configureInvoiceApprovers(formData: FormData) {
   );
 
   const supabase = await createClient();
+
+  // Defensa en profundidad: solo se pueden asignar usuarios elegibles para aprobar
+  // (Aprobador, o Compras/Admin con can_approve). Evita asignaciones vía form manipulado.
+  const { data: selectedApprovers } = await supabase
+    .from("approvers")
+    .select("id, role, is_active, can_approve")
+    .in("id", approverIds);
+  const allEligible =
+    (selectedApprovers ?? []).length === approverIds.length &&
+    (selectedApprovers ?? []).every((a) => canApproveInvoices(a));
+  if (!allEligible) {
+    redirect(
+      `/facturas/${invoiceId}?error=${encodeURIComponent("Uno de los aprobadores seleccionados no puede aprobar facturas")}`,
+    );
+  }
 
   const { data: invoice, error: loadError } = await supabase
     .from("invoices")
@@ -294,6 +305,13 @@ export async function configureInvoiceApprovers(formData: FormData) {
       .update({ approval_order: order })
       .eq("invoice_id", invoiceId)
       .eq("approver_id", approver_id);
+  }
+
+  // En cascada YA liberada, reordenar (o cambiar de modo) puede alterar quién
+  // tiene el turno. Normalizamos para que quede exactamente un 'pending' (el
+  // primero sin decidir) y el resto 'blocked'.
+  if (isSequential && isReleased) {
+    await normalizeCascade(supabase, invoiceId);
   }
 
   const [{ count: approvedCount }, { count: rejectedCount }] = await Promise.all([

@@ -71,10 +71,13 @@ export function StatusBadge({
   status,
   size = "sm",
   className,
+  labelOverride,
 }: {
   status: string | null | undefined;
   size?: "sm" | "md";
   className?: string;
+  /** Reemplaza el texto manteniendo color e icono del estado (p. ej. "Su turno"). */
+  labelOverride?: string;
 }) {
   const key = (status ?? "pending").toLowerCase() as StatusKey;
   const item = MAP[key] ?? {
@@ -82,6 +85,7 @@ export function StatusBadge({
     className: "bg-neutral-50 text-neutral-700 ring-neutral-200",
     icon: MinusCircle,
   };
+  const label = labelOverride ?? item.label;
   const Icon = item.icon;
   const sizeClass =
     size === "md"
@@ -97,7 +101,7 @@ export function StatusBadge({
       )}
     >
       <Icon className="shrink-0" />
-      {item.label}
+      {label}
     </span>
   );
 }

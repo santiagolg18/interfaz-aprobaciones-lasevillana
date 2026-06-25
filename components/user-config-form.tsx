@@ -17,6 +17,7 @@ type UserRow = {
   role: string;
   is_active: boolean;
   business_front: string | null;
+  can_approve: boolean;
 };
 
 export function UserConfigForm({
@@ -127,6 +128,23 @@ export function UserConfigForm({
             Este usuario de Compras verá únicamente las facturas de este frente.
           </p>
         </div>
+      ) : null}
+
+      {role === "admin" || role === "purchasing" ? (
+        <label className="flex items-center gap-3 rounded-md border p-3">
+          <Switch
+            id="can_approve"
+            name="can_approve"
+            defaultChecked={user?.can_approve ?? false}
+          />
+          <div className="leading-tight">
+            <div className="text-sm font-medium">Puede aprobar facturas</div>
+            <div className="text-xs text-muted-foreground">
+              Permite que este usuario apruebe las facturas que se le asignen,
+              además de su rol.
+            </div>
+          </div>
+        </label>
       ) : null}
 
       <label className="flex items-center gap-3 rounded-md border p-3">

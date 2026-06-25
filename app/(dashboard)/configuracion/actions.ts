@@ -29,6 +29,9 @@ export async function createUserWithAuth(formData: FormData) {
   const role = parseRole(formData.get("role"));
   const business_front = frontForRole(role, formData.get("business_front"));
   const is_active = formData.get("is_active") === "on";
+  // El Aprobador siempre puede aprobar; para Admin/Compras depende de la casilla.
+  const can_approve =
+    role === "approver" ? true : formData.get("can_approve") === "on";
 
   if (!name || !email || !password) {
     redirect(
@@ -60,6 +63,7 @@ export async function createUserWithAuth(formData: FormData) {
     role,
     business_front,
     is_active,
+    can_approve,
     auth_user_id: created.user.id,
   });
 
@@ -86,6 +90,9 @@ export async function updateUserConfig(formData: FormData) {
   const role = parseRole(formData.get("role"));
   const business_front = frontForRole(role, formData.get("business_front"));
   const is_active = formData.get("is_active") === "on";
+  // El Aprobador siempre puede aprobar; para Admin/Compras depende de la casilla.
+  const can_approve =
+    role === "approver" ? true : formData.get("can_approve") === "on";
 
   if (!id || !name) {
     redirect(`/configuracion?error=${encodeURIComponent("Datos inválidos")}`);
@@ -94,7 +101,7 @@ export async function updateUserConfig(formData: FormData) {
   const supabase = await createClient();
   const { error } = await supabase
     .from("approvers")
-    .update({ name, role, business_front, is_active })
+    .update({ name, role, business_front, is_active, can_approve })
     .eq("id", id);
 
   if (error) {

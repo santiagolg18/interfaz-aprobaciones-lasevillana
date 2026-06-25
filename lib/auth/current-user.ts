@@ -45,6 +45,15 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
   return { user, profile, role };
 }
 
+// Elegibilidad para aprobar facturas: activo y, o bien es Aprobador, o bien tiene
+// la casilla "Puede aprobar facturas" (can_approve) habilitada (Compras/Admin).
+export function canApproveInvoices(
+  profile: Pick<ApproverRow, "role" | "is_active" | "can_approve"> | null,
+): boolean {
+  if (!profile || profile.is_active === false) return false;
+  return profile.role === "approver" || profile.can_approve === true;
+}
+
 export async function requireAdmin(): Promise<CurrentUser> {
   const me = await getCurrentUser();
   if (!me) redirect("/login");
@@ -62,6 +71,10 @@ export async function requireStaff(): Promise<CurrentUser> {
 
 export function defaultHomeForRole(role: CurrentUserRole): string {
   if (role === "approver") return "/mis-aprobaciones";
-  if (role === "admin" || role === "purchasing") return "/facturas";
+  // Admin gestiona ambos frentes (parrilla/agropecuaria); aterriza en el Dashboard
+  // neutral, no en /facturas "todos" (que ya no se usa). Compras sí va a /facturas:
+  // el servidor fuerza su frente asignado, así que solo ve el suyo.
+  if (role === "admin") return "/dashboard";
+  if (role === "purchasing") return "/facturas";
   return "/login";
 }

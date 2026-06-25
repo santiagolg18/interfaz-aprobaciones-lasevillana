@@ -6,6 +6,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/auth/current-user";
 import { logInvoiceActivity } from "@/lib/audit/log-activity";
+import { normalizeCascade } from "@/lib/approvals/cascade";
 import type { Database, TablesUpdate, Json } from "@/lib/database.types";
 
 type ChecklistItem = { id: string; label: string; is_required: boolean };
@@ -141,17 +142,10 @@ export async function submitPurchaseReview(formData: FormData) {
 
   // Activar las aprobaciones según el modo.
   if (mode === "sequential") {
-    // Solo el primero de la cadena queda 'pending'; el resto sigue 'blocked'.
-    const first = rows.find((r) => r.status === "blocked") ?? rows[0];
-    const { error: activateError } = await supabase
-      .from("approvals")
-      .update({ status: "pending" })
-      .eq("id", first.id);
-    if (activateError) {
-      redirect(
-        `/facturas/${invoiceId}?error=${encodeURIComponent(activateError.message)}`,
-      );
-    }
+    // Garantiza EXACTAMENTE un turno activo: el primero de la cadena queda
+    // 'pending' y el resto 'blocked'. Normalizar (no solo ascender el primero)
+    // evita que queden varios 'pending' si alguno llegó así de un ciclo previo.
+    await normalizeCascade(supabase, invoiceId);
   } else {
     // Paralelo: todas las bloqueadas pasan a 'pending' a la vez.
     const { error: activateError } = await supabase

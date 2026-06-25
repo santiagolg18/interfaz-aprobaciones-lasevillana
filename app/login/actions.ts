@@ -3,11 +3,12 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { getCurrentUser, defaultHomeForRole } from "@/lib/auth/current-user";
 
 export async function signIn(formData: FormData) {
   const email = String(formData.get("email") ?? "").trim();
   const password = String(formData.get("password") ?? "");
-  const next = String(formData.get("next") ?? "/facturas") || "/facturas";
+  const next = String(formData.get("next") ?? "").trim();
 
   if (!email || !password) {
     redirect(`/login?error=${encodeURIComponent("Email y contraseña son requeridos")}`);
@@ -21,7 +22,17 @@ export async function signIn(formData: FormData) {
   }
 
   revalidatePath("/", "layout");
-  redirect(next.startsWith("/") ? next : "/facturas");
+
+  // Si venía de un deep link (p. ej. lo mandamos a /login con ?next=/proveedores),
+  // lo respetamos. Si no, a la home según su rol: admin→/dashboard, compras→
+  // /facturas (su frente), aprobador→/mis-aprobaciones.
+  const isDeepLink =
+    next.startsWith("/") && next !== "/login" && next !== "/facturas";
+  if (isDeepLink) {
+    redirect(next);
+  }
+  const me = await getCurrentUser();
+  redirect(defaultHomeForRole(me?.role ?? "unknown"));
 }
 
 export async function signOut() {

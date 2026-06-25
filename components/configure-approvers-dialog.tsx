@@ -101,10 +101,14 @@ export function ConfigureApproversDialog({
   }
 
   function move(id: string, dir: -1 | 1) {
+    if (lockedIds.has(id)) return;
     setSelected((prev) => {
       const i = prev.indexOf(id);
       const j = i + dir;
       if (i < 0 || j < 0 || j >= prev.length) return prev;
+      // No reordenar contra alguien que ya decidió: su posición en la cadena
+      // refleja una decisión ya tomada.
+      if (lockedIds.has(prev[j])) return prev;
       const next = [...prev];
       [next[i], next[j]] = [next[j], next[i]];
       return next;
@@ -291,43 +295,58 @@ export function ConfigureApproversDialog({
               <div className="space-y-2">
                 <Label>Orden de aprobación (cascada)</Label>
                 <ol className="space-y-1.5">
-                  {selected.map((id, index) => (
-                    <li
-                      key={id}
-                      className="flex items-center gap-2 rounded-md border bg-white px-3 py-2"
-                    >
-                      <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-neutral-900 text-xs font-semibold text-white">
-                        {index + 1}
-                      </span>
-                      <span className="flex-1 truncate text-sm text-neutral-800">
-                        {nameByApproverId.get(id) ?? "—"}
-                      </span>
-                      <div className="flex shrink-0 gap-1">
-                        <Button
-                          type="button"
-                          size="icon"
-                          variant="ghost"
-                          className="size-7"
-                          disabled={index === 0}
-                          onClick={() => move(id, -1)}
-                          aria-label="Subir"
-                        >
-                          <ArrowUp className="size-4" />
-                        </Button>
-                        <Button
-                          type="button"
-                          size="icon"
-                          variant="ghost"
-                          className="size-7"
-                          disabled={index === selectedCount - 1}
-                          onClick={() => move(id, 1)}
-                          aria-label="Bajar"
-                        >
-                          <ArrowDown className="size-4" />
-                        </Button>
-                      </div>
-                    </li>
-                  ))}
+                  {selected.map((id, index) => {
+                    const isLocked = lockedIds.has(id);
+                    const canMoveUp =
+                      index > 0 && !isLocked && !lockedIds.has(selected[index - 1]);
+                    const canMoveDown =
+                      index < selectedCount - 1 &&
+                      !isLocked &&
+                      !lockedIds.has(selected[index + 1]);
+                    return (
+                      <li
+                        key={id}
+                        className="flex items-center gap-2 rounded-md border bg-white px-3 py-2"
+                      >
+                        <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-neutral-900 text-xs font-semibold text-white">
+                          {index + 1}
+                        </span>
+                        <span className="flex flex-1 items-center gap-1.5 truncate text-sm text-neutral-800">
+                          {nameByApproverId.get(id) ?? "—"}
+                          {isLocked ? (
+                            <Lock
+                              className="size-3 shrink-0 text-muted-foreground"
+                              aria-hidden
+                            />
+                          ) : null}
+                        </span>
+                        <div className="flex shrink-0 gap-1">
+                          <Button
+                            type="button"
+                            size="icon"
+                            variant="ghost"
+                            className="size-7"
+                            disabled={!canMoveUp}
+                            onClick={() => move(id, -1)}
+                            aria-label="Subir"
+                          >
+                            <ArrowUp className="size-4" />
+                          </Button>
+                          <Button
+                            type="button"
+                            size="icon"
+                            variant="ghost"
+                            className="size-7"
+                            disabled={!canMoveDown}
+                            onClick={() => move(id, 1)}
+                            aria-label="Bajar"
+                          >
+                            <ArrowDown className="size-4" />
+                          </Button>
+                        </div>
+                      </li>
+                    );
+                  })}
                 </ol>
               </div>
             ) : null}

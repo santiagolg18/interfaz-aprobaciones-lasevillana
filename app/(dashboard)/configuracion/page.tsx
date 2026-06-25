@@ -27,7 +27,9 @@ export default async function ConfiguracionPage() {
 
   const { data: users, error } = await supabase
     .from("approvers")
-    .select("id, name, email, role, is_active, auth_user_id, business_front")
+    .select(
+      "id, name, email, role, is_active, auth_user_id, business_front, can_approve",
+    )
     .order("role", { ascending: true })
     .order("name", { ascending: true });
 
@@ -102,7 +104,11 @@ export default async function ConfiguracionPage() {
                       </div>
                     </div>
                   </div>
-                  <RoleBadge role={u.role} businessFront={u.business_front} />
+                  <RoleBadge
+                    role={u.role}
+                    businessFront={u.business_front}
+                    canApprove={u.can_approve}
+                  />
                 </div>
                 <div className="mt-3 flex items-center justify-between gap-3 pt-3 border-t">
                   <div className="flex items-center gap-2">
@@ -202,7 +208,11 @@ export default async function ConfiguracionPage() {
                       {u.email}
                     </TableCell>
                     <TableCell>
-                      <RoleBadge role={u.role} businessFront={u.business_front} />
+                      <RoleBadge
+                        role={u.role}
+                        businessFront={u.business_front}
+                        canApprove={u.can_approve}
+                      />
                     </TableCell>
                     <TableCell>
                       {u.is_active ? (
@@ -283,15 +293,28 @@ export default async function ConfiguracionPage() {
 function RoleBadge({
   role,
   businessFront,
+  canApprove,
 }: {
   role: string;
   businessFront?: string | null;
+  canApprove?: boolean;
 }) {
+  // Para Admin/Compras, una píldora extra cuando además puede aprobar facturas.
+  const approveBadge =
+    canApprove && role !== "approver" ? (
+      <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100 border-0">
+        Aprueba
+      </Badge>
+    ) : null;
+
   if (role === "admin")
     return (
-      <Badge className="bg-violet-100 text-violet-700 hover:bg-violet-100 border-0">
-        Admin
-      </Badge>
+      <div className="flex flex-wrap items-center justify-end gap-1">
+        <Badge className="bg-violet-100 text-violet-700 hover:bg-violet-100 border-0">
+          Admin
+        </Badge>
+        {approveBadge}
+      </div>
     );
   if (role === "purchasing") {
     const frontLabel =
@@ -301,9 +324,12 @@ function RoleBadge({
           ? "Agropecuaria"
           : null;
     return (
-      <Badge className="bg-sky-100 text-sky-700 hover:bg-sky-100 border-0">
-        Compras{frontLabel ? ` · ${frontLabel}` : ""}
-      </Badge>
+      <div className="flex flex-wrap items-center justify-end gap-1">
+        <Badge className="bg-sky-100 text-sky-700 hover:bg-sky-100 border-0">
+          Compras{frontLabel ? ` · ${frontLabel}` : ""}
+        </Badge>
+        {approveBadge}
+      </div>
     );
   }
   return (

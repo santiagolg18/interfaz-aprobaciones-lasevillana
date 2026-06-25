@@ -108,6 +108,7 @@ export type Database = {
         Row: {
           auth_user_id: string | null
           business_front: string | null
+          can_approve: boolean
           created_at: string | null
           email: string
           id: string
@@ -119,6 +120,7 @@ export type Database = {
         Insert: {
           auth_user_id?: string | null
           business_front?: string | null
+          can_approve?: boolean
           created_at?: string | null
           email: string
           id?: string
@@ -130,6 +132,7 @@ export type Database = {
         Update: {
           auth_user_id?: string | null
           business_front?: string | null
+          can_approve?: boolean
           created_at?: string | null
           email?: string
           id?: string

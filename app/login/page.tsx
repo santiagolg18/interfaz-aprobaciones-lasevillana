@@ -40,7 +40,7 @@ export default async function LoginPage({
         </div>
 
         <form action={signIn} className="space-y-4">
-          <input type="hidden" name="next" value={next ?? "/facturas"} />
+          <input type="hidden" name="next" value={next ?? ""} />
           <div className="space-y-1.5">
             <Label htmlFor="email" className="text-sm font-medium">
               Email

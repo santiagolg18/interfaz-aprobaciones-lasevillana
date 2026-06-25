@@ -93,8 +93,10 @@ export async function updateSession(request: NextRequest) {
     if (pathname === "/login") {
       const url = request.nextUrl.clone();
       url.search = "";
+      // Mantener en sync con defaultHomeForRole (lib/auth/current-user.ts).
       if (role === "approver") url.pathname = "/mis-aprobaciones";
-      else if (role === "admin" || role === "purchasing") url.pathname = "/facturas";
+      else if (role === "admin") url.pathname = "/dashboard";
+      else if (role === "purchasing") url.pathname = "/facturas";
       else {
         await supabase.auth.signOut();
         url.pathname = "/login";

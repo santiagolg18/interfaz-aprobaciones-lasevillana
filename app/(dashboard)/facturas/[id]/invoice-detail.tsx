@@ -35,7 +35,7 @@ import {
   type ChecklistSnapshotEntry,
 } from "@/components/purchase-review-panel";
 import { createClient } from "@/lib/supabase/server";
-import { getCurrentUser } from "@/lib/auth/current-user";
+import { getCurrentUser, canApproveInvoices } from "@/lib/auth/current-user";
 import { formatDate, formatDateTime } from "@/lib/format";
 import { getSignedStorageUrl } from "@/lib/supabase/storage";
 import { findDuplicateInvoices } from "@/lib/invoices/find-duplicates";
@@ -66,21 +66,13 @@ export async function InvoiceDetail({
 
   if (!invoice) notFound();
 
-  // Compras solo puede ver facturas de su frente de negocio asignado.
-  if (
-    me.role === "purchasing" &&
-    me.profile?.business_front &&
-    invoice.business_front !== me.profile.business_front
-  ) {
-    redirect("/facturas");
-  }
-
   const { data: approvals } = await supabase
     .from("approvals")
     .select(
-      "id, status, approved_at, notes, created_at, approver_id, approvers(name, email)",
+      "id, status, approval_order, approved_at, notes, created_at, approver_id, approvers(name, email)",
     )
     .eq("invoice_id", id)
+    .order("approval_order", { ascending: true })
     .order("created_at", { ascending: true });
 
   const myApproval = me.profile
@@ -90,6 +82,17 @@ export async function InvoiceDetail({
   // Approvers solo pueden ver facturas a las que están asignados.
   if (me.role === "approver" && !myApproval) {
     redirect("/mis-aprobaciones");
+  }
+
+  // Compras solo ve facturas de su frente, EXCEPTO si la factura le fue asignada
+  // como aprobador (puede aprobar facturas de cualquier frente que le asignen).
+  if (
+    me.role === "purchasing" &&
+    me.profile?.business_front &&
+    invoice.business_front !== me.profile.business_front &&
+    !myApproval
+  ) {
+    redirect("/facturas");
   }
 
   const isStaff = me.role === "admin" || me.role === "purchasing";
@@ -129,23 +132,22 @@ export async function InvoiceDetail({
     const assignedIds = currentAssignments.map((a) => a.approverId);
     const { data: allApprovers } = await supabase
       .from("approvers")
-      .select("id, name, email, is_active")
+      .select("id, name, email, role, is_active, can_approve")
       .order("name");
+    // Solo usuarios elegibles para aprobar (Aprobador, o Compras/Admin con can_approve);
+    // los ya-asignados se conservan aunque hoy no sean elegibles, para poder quitarlos.
     dialogApprovers = (allApprovers ?? [])
-      .filter((a) => a.is_active || assignedIds.includes(a.id))
+      .filter((a) => canApproveInvoices(a) || assignedIds.includes(a.id))
       .map(({ id, name, email }) => ({ id, name, email }));
   }
 
   const hasApprovals = (approvals ?? []).length > 0;
 
   const myApproverId = me.profile?.id ?? null;
-  const sortedApprovals = myApproverId
-    ? [...(approvals ?? [])].sort((a, b) => {
-        if (a.approver_id === myApproverId) return -1;
-        if (b.approver_id === myApproverId) return 1;
-        return 0;
-      })
-    : (approvals ?? []);
+  // El orden de la cadena (approval_order) manda en ambas vistas; el aprobador
+  // actual se resalta sin alterar la secuencia.
+  const orderedApprovals = approvals ?? [];
+  const isSequential = invoice.approval_mode === "sequential";
 
   // Posibles duplicados (otra factura no archivada con mismo NIT + número).
   const duplicates = isStaff
@@ -414,7 +416,7 @@ export async function InvoiceDetail({
               <>
                 {/* Mobile: cards */}
                 <ul className="md:hidden divide-y">
-                  {sortedApprovals.map((a) => {
+                  {orderedApprovals.map((a, index) => {
                     const isMe = a.approver_id === myApproverId;
                     const meHighlight = isMe
                       ? a.status === "pending"
@@ -426,22 +428,37 @@ export async function InvoiceDetail({
                     return (
                       <li key={a.id} className={`p-4 space-y-1.5 ${meHighlight}`}>
                         <div className="flex items-start justify-between gap-3">
-                          <div className="min-w-0">
-                            <div className="flex items-center gap-1.5">
-                              <span className="font-medium text-neutral-900 truncate">
-                                {a.approvers?.name ?? "—"}
+                          <div className="flex min-w-0 items-start gap-2">
+                            {isSequential ? (
+                              <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-neutral-900 text-[11px] font-semibold text-white">
+                                {index + 1}
                               </span>
-                              {isMe ? (
-                                <span className="shrink-0 rounded-full bg-neutral-900 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
-                                  Tú
+                            ) : null}
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-1.5">
+                                <span className="font-medium text-neutral-900 truncate">
+                                  {a.approvers?.name ?? "—"}
                                 </span>
-                              ) : null}
-                            </div>
-                            <div className="text-xs text-muted-foreground truncate">
-                              {a.approvers?.email ?? "—"}
+                                {isMe ? (
+                                  <span className="shrink-0 rounded-full bg-neutral-900 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
+                                    Tú
+                                  </span>
+                                ) : null}
+                              </div>
+                              <div className="text-xs text-muted-foreground truncate">
+                                {a.approvers?.email ?? "—"}
+                              </div>
                             </div>
                           </div>
-                          <StatusBadge status={a.status} className="shrink-0" />
+                          <StatusBadge
+                            status={a.status}
+                            className="shrink-0"
+                            labelOverride={
+                              isSequential && a.status === "pending"
+                                ? "Su turno"
+                                : undefined
+                            }
+                          />
                         </div>
                         {a.approved_at ? (
                           <div className="text-xs text-muted-foreground">
@@ -471,12 +488,17 @@ export async function InvoiceDetail({
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {(approvals ?? []).map((a) => {
+                      {orderedApprovals.map((a, index) => {
                         const isMe = a.approver_id === myApproverId;
                         return (
                           <TableRow key={a.id}>
                             <TableCell className="font-medium text-neutral-900">
                               <span className="inline-flex items-center gap-1.5">
+                                {isSequential ? (
+                                  <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-neutral-900 text-[11px] font-semibold text-white">
+                                    {index + 1}
+                                  </span>
+                                ) : null}
                                 {a.approvers?.name ?? "—"}
                                 {isMe ? (
                                   <span className="rounded-full bg-neutral-900 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
@@ -489,7 +511,14 @@ export async function InvoiceDetail({
                               {a.approvers?.email ?? "—"}
                             </TableCell>
                             <TableCell>
-                              <StatusBadge status={a.status} />
+                              <StatusBadge
+                                status={a.status}
+                                labelOverride={
+                                  isSequential && a.status === "pending"
+                                    ? "Su turno"
+                                    : undefined
+                                }
+                              />
                             </TableCell>
                             <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
                               {formatDateTime(a.approved_at)}
