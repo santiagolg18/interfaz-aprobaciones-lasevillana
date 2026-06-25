@@ -5,6 +5,8 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getCurrentUser } from "@/lib/auth/current-user";
+import { logInvoiceActivity } from "@/lib/audit/log-activity";
+import { parseFront } from "@/lib/invoices/business-front";
 
 const BUCKET = "invoices";
 const MAX_BYTES = 10 * 1024 * 1024;
@@ -85,6 +87,8 @@ export async function uploadPurchaseOrder(
     .eq("id", invoiceId);
   if (updateError) return { error: `Actualización falló: ${updateError.message}` };
 
+  await logInvoiceActivity({ invoiceId, action: "po_uploaded" });
+
   revalidatePath(`/facturas/${invoiceId}`);
   revalidatePath("/facturas");
   return { ok: true };
@@ -108,6 +112,12 @@ export async function createManualInvoice(formData: FormData) {
   const issueDate = String(formData.get("issue_date") ?? "").trim() || null;
   const dueDate = String(formData.get("due_date") ?? "").trim() || null;
   const description = String(formData.get("description") ?? "").trim() || null;
+  // Frente de negocio de la factura: Compras la estampa con su frente asignado;
+  // el admin lo elige en el formulario.
+  const businessFront =
+    me.role === "purchasing"
+      ? parseFront(me.profile.business_front)
+      : parseFront(formData.get("business_front"));
   const approverIds = formData
     .getAll("approver_ids")
     .map(String)
@@ -127,6 +137,7 @@ export async function createManualInvoice(formData: FormData) {
   if (issueDate) formState.set("issue_date", issueDate);
   if (dueDate) formState.set("due_date", dueDate);
   if (description) formState.set("description", description);
+  if (businessFront) formState.set("business_front", businessFront);
   for (const id of approverIds) formState.append("approver_ids", id);
   if (Number.isFinite(parsedRequired)) {
     formState.set("required_approvals", String(parsedRequired));
@@ -142,6 +153,9 @@ export async function createManualInvoice(formData: FormData) {
     return redirectToNew("Monto total inválido", formState);
   }
   if (!issueDate) return redirectToNew("Falta la fecha de emisión", formState);
+  if (me.role === "admin" && !businessFront) {
+    return redirectToNew("Selecciona el frente de negocio", formState);
+  }
   if (approverIds.length === 0)
     return redirectToNew("Selecciona al menos un aprobador", formState);
 
@@ -181,15 +195,29 @@ export async function createManualInvoice(formData: FormData) {
     );
   }
 
+  // ¿Existió antes una factura con este número+NIT que fue eliminada? No bloquea
+  // la creación, pero se avisará en el mensaje de éxito para que quede claro.
+  const { data: priorDeleted } = await supabase
+    .from("invoice_activity_log")
+    .select("id")
+    .eq("action", "deleted")
+    .eq("invoice_number", invoiceNumber)
+    .eq("details->>supplier_nit", supplierNit)
+    .limit(1)
+    .maybeSingle();
+  const wasDeletedBefore = Boolean(priorDeleted);
+
   let supplierId: string;
+  let approvalMode: "parallel" | "sequential" = "parallel";
   const { data: foundSupplier } = await supabase
     .from("suppliers")
-    .select("id")
+    .select("id, approval_mode")
     .eq("nit", supplierNit)
     .maybeSingle();
 
   if (foundSupplier) {
     supplierId = foundSupplier.id;
+    if (foundSupplier.approval_mode === "sequential") approvalMode = "sequential";
   } else {
     const { data: createdSupplier, error: createSupplierError } = await supabase
       .from("suppliers")
@@ -238,7 +266,11 @@ export async function createManualInvoice(formData: FormData) {
       due_date: dueDate,
       description,
       pdf_storage_path: storedPath,
-      status: "pending",
+      business_front: businessFront,
+      // Toda factura nueva entra a la compuerta de revisión de compras. No es
+      // visible para los aprobadores hasta que compras la libere.
+      status: "in_review",
+      approval_mode: approvalMode,
       required_approvals: requiredApprovals,
       current_approvals: 0,
     })
@@ -255,12 +287,26 @@ export async function createManualInvoice(formData: FormData) {
 
   const invoiceId = createdInvoice.id;
 
+  await logInvoiceActivity({
+    invoiceId,
+    action: "created",
+    snapshot: {
+      invoice_number: invoiceNumber,
+      supplier_name: supplierName,
+      total_amount: totalAmount,
+    },
+    details: { source: "manual", required_approvals: requiredApprovals },
+  });
+
   const { error: approvalsInsertError } = await admin.from("approvals").insert(
-    approverIds.map((approver_id) => ({
+    approverIds.map((approver_id, index) => ({
       invoice_id: invoiceId,
       approver_id,
       token: crypto.randomUUID(),
-      status: "pending" as const,
+      // 'blocked' hasta que compras libere la factura. El orden (1, 2, 3…) define
+      // la cadena para el modo secuencial; en paralelo es indiferente.
+      status: "blocked" as const,
+      approval_order: index + 1,
     })),
   );
   if (approvalsInsertError) {
@@ -278,9 +324,10 @@ export async function createManualInvoice(formData: FormData) {
 
   await admin.from("approval_rules").delete().eq("supplier_id", supplierId);
   await admin.from("approval_rules").insert(
-    approverIds.map((approver_id) => ({
+    approverIds.map((approver_id, index) => ({
       supplier_id: supplierId,
       approver_id,
+      approval_order: index + 1,
     })),
   );
 
@@ -290,7 +337,11 @@ export async function createManualInvoice(formData: FormData) {
   revalidatePath("/mis-aprobaciones");
 
   redirect(
-    `/facturas/${invoiceId}?success=${encodeURIComponent("Factura creada")}`,
+    `/facturas/${invoiceId}?success=${encodeURIComponent(
+      wasDeletedBefore
+        ? "Factura creada (atención: una factura con este número fue eliminada antes)"
+        : "Factura creada",
+    )}`,
   );
 }
 
@@ -319,6 +370,8 @@ export async function deletePurchaseOrder(
     .update({ po_storage_path: null, po_uploaded_at: null })
     .eq("id", invoiceId);
   if (updateError) return { error: updateError.message };
+
+  await logInvoiceActivity({ invoiceId, action: "po_deleted" });
 
   revalidatePath(`/facturas/${invoiceId}`);
   revalidatePath("/facturas");

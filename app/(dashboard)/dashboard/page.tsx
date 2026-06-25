@@ -24,6 +24,11 @@ import { EmptyState } from "@/components/empty-state";
 import { PageHeader } from "@/components/page-header";
 import { SubmitButton } from "@/components/submit-button";
 import { createClient } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/auth/current-user";
+import {
+  applyFrontFilter,
+  resolveInvoiceScope,
+} from "@/lib/invoices/business-front";
 import { formatDateTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -61,12 +66,16 @@ export default async function DashboardPage({
   const toIso = to ? `${to}T23:59:59-05:00` : undefined;
 
   const supabase = await createClient();
+  const me = await getCurrentUser();
+  // Compras ve metricas solo de su frente; admin ve todo.
+  const scope = resolveInvoiceScope(me);
 
   let statsQuery = supabase
     .from("invoices")
     .select("status, total_amount", { count: "exact" });
   if (fromIso) statsQuery = statsQuery.gte("received_at", fromIso);
   if (toIso) statsQuery = statsQuery.lte("received_at", toIso);
+  statsQuery = applyFrontFilter(statsQuery, scope);
 
   let oldestQuery = supabase
     .from("invoices")
@@ -78,6 +87,7 @@ export default async function DashboardPage({
     .limit(10);
   if (fromIso) oldestQuery = oldestQuery.gte("received_at", fromIso);
   if (toIso) oldestQuery = oldestQuery.lte("received_at", toIso);
+  oldestQuery = applyFrontFilter(oldestQuery, scope);
 
   const [{ data: stats }, { data: oldest }, { data: avgData }] = await Promise.all([
     statsQuery,
@@ -94,7 +104,8 @@ export default async function DashboardPage({
     counts.total += 1;
     const s = (row.status ?? "pending").toLowerCase();
     if (s === "pending") counts.pending += 1;
-    else if (s === "approved") {
+    // 'completed' = aprobada y entregada a contabilidad; sigue contando como aprobada.
+    else if (s === "approved" || s === "completed") {
       counts.approved += 1;
       totalApprovedAmount += Number(row.total_amount ?? 0);
     } else if (s === "rejected") counts.rejected += 1;

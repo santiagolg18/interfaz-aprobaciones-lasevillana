@@ -2,12 +2,14 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import {
   Building2,
   CheckSquare,
   FileSpreadsheet,
+  History,
   LayoutDashboard,
+  ListChecks,
   LogOut,
   Menu,
   Receipt,
@@ -21,35 +23,93 @@ import { Avatar } from "@/components/avatar";
 import { signOut } from "@/app/login/actions";
 import { cn } from "@/lib/utils";
 import type { CurrentUserRole } from "@/lib/auth/current-user";
+import { frontLabel, parseFront } from "@/lib/invoices/business-front";
 
 const LOGO_URL =
   "https://res.cloudinary.com/dqnsskjfg/image/upload/q_auto/f_auto/v1776400960/Logo-La-Sevillana-white_1_cjoldw.png";
 
-type NavItem = { href: string; label: string; icon: typeof LayoutDashboard };
+// `front` distingue las dos secciones de Facturas del admin (que comparten el
+// path /facturas y solo difieren en el query param). null = sin frente.
+type NavItem = {
+  href: string;
+  label: string;
+  icon: typeof LayoutDashboard;
+  front?: "parrilla" | "agropecuaria";
+};
 
-function navForRole(role: CurrentUserRole): NavItem[] {
+function navForRole(
+  role: CurrentUserRole,
+  businessFront: string | null,
+): NavItem[] {
   if (role === "approver") {
     return [{ href: "/mis-aprobaciones", label: "Mis aprobaciones", icon: CheckSquare }];
   }
+
+  // Admin: dos secciones separadas, una por frente de negocio.
+  // Compras: una sola sección, etiquetada con su frente asignado (el filtrado
+  // lo fuerza el servidor según su perfil).
+  const facturasItems: NavItem[] =
+    role === "admin"
+      ? [
+          {
+            href: "/facturas?front=parrilla",
+            label: "Facturas Parrilla",
+            icon: Receipt,
+            front: "parrilla",
+          },
+          {
+            href: "/facturas?front=agropecuaria",
+            label: "Facturas Agropecuaria",
+            icon: Receipt,
+            front: "agropecuaria",
+          },
+        ]
+      : [
+          {
+            href: "/facturas",
+            label: (() => {
+              const f = parseFront(businessFront);
+              return f ? `Facturas ${frontLabel(f)}` : "Facturas";
+            })(),
+            icon: Receipt,
+          },
+        ];
+
   const base: NavItem[] = [
     { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-    { href: "/facturas", label: "Facturas", icon: Receipt },
+    ...facturasItems,
     { href: "/proveedores", label: "Proveedores", icon: Building2 },
     { href: "/aprobadores", label: "Aprobadores", icon: Users },
     { href: "/reportes", label: "Reportes", icon: FileSpreadsheet },
+    // Historial global de acciones sobre facturas (auditoría).
+    { href: "/actividad", label: "Actividad", icon: History },
   ];
   if (role === "admin") {
+    // Admin gestiona el checklist desde dentro de Configuración, así no se
+    // duplica como sección aparte en el menú.
     base.push({ href: "/configuracion", label: "Configuración", icon: Settings });
+  } else {
+    // Compras no tiene acceso a Configuración, así que llega al checklist
+    // directamente desde el menú.
+    base.push({ href: "/configuracion/checklist", label: "Checklist", icon: ListChecks });
   }
   return base;
 }
 
 function NavLinks({ nav, onNavigate }: { nav: NavItem[]; onNavigate?: () => void }) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const currentFront = searchParams.get("front");
   return (
     <nav className="flex flex-col gap-0.5">
-      {nav.map(({ href, label, icon: Icon }) => {
-        const active = pathname === href || pathname.startsWith(`${href}/`);
+      {nav.map(({ href, label, icon: Icon, front }) => {
+        const onFacturas =
+          pathname === "/facturas" || pathname.startsWith("/facturas/");
+        // Las dos entradas de Facturas del admin comparten path: se distinguen
+        // por el query param `front`.
+        const active = front
+          ? onFacturas && currentFront === front
+          : pathname === href || pathname.startsWith(`${href}/`);
         return (
           <Link
             key={href}
@@ -76,14 +136,16 @@ function NavLinks({ nav, onNavigate }: { nav: NavItem[]; onNavigate?: () => void
 function SidebarBody({
   userEmail,
   role,
+  businessFront,
   onNavigate,
 }: {
   userEmail: string;
   role: CurrentUserRole;
+  businessFront: string | null;
   onNavigate?: () => void;
 }) {
   const userDisplay = userEmail.split("@")[0] || userEmail;
-  const nav = navForRole(role);
+  const nav = navForRole(role, businessFront);
   return (
     <div className="flex h-full flex-col">
       {/* Brand header — La Sevillana */}
@@ -151,15 +213,17 @@ function SidebarBody({
 export function Sidebar({
   userEmail,
   role,
+  businessFront,
 }: {
   userEmail: string;
   role: CurrentUserRole;
+  businessFront: string | null;
 }) {
   return (
     <>
       {/* Desktop */}
       <aside className="hidden lg:flex lg:fixed lg:inset-y-0 lg:left-0 lg:w-64 lg:flex-col lg:border-r lg:bg-white">
-        <SidebarBody userEmail={userEmail} role={role} />
+        <SidebarBody userEmail={userEmail} role={role} businessFront={businessFront} />
       </aside>
 
       {/* Mobile / tablet */}
@@ -185,7 +249,7 @@ export function Sidebar({
           </SheetTrigger>
           <SheetContent side="left" className="w-[85vw] max-w-72 p-0">
             <SheetTitle className="sr-only">Navegación</SheetTitle>
-            <SidebarBody userEmail={userEmail} role={role} />
+            <SidebarBody userEmail={userEmail} role={role} businessFront={businessFront} />
           </SheetContent>
         </Sheet>
       </header>

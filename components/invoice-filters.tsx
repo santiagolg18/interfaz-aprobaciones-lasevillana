@@ -82,7 +82,6 @@ export function InvoiceFilters({ suppliers }: { suppliers: Supplier[] }) {
   }
 
   const hasAny = [
-    "status",
     "supplier_id",
     "from",
     "to",
@@ -90,9 +89,15 @@ export function InvoiceFilters({ suppliers }: { suppliers: Supplier[] }) {
     "min",
     "max",
     "po",
-    "quick",
     "sort",
   ].some((k) => sp.get(k));
+
+  // Al limpiar filtros conservamos la pestaña activa.
+  function clearFilters() {
+    const tab = sp.get("tab");
+    const target = tab ? `/facturas?tab=${tab}` : "/facturas";
+    startTransition(() => router.replace(target, { scroll: false }));
+  }
 
   const poValue = sp.get("po") ?? "all";
 
@@ -103,25 +108,7 @@ export function InvoiceFilters({ suppliers }: { suppliers: Supplier[] }) {
         ariaLabel="Buscar facturas"
       />
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-[1fr_1fr_180px_180px] lg:items-end">
-        <div className="col-span-2 space-y-1.5 lg:col-span-1">
-          <Label className="text-sm font-medium">Estado</Label>
-          <Select
-            value={sp.get("status") ?? ALL}
-            onValueChange={(v) => setParam("status", v, { quick: null })}
-          >
-            <SelectTrigger className="h-11 w-full sm:h-9">
-              <SelectValue placeholder="Todos" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={ALL}>Todos</SelectItem>
-              <SelectItem value="pending">Pendiente</SelectItem>
-              <SelectItem value="approved">Aprobada</SelectItem>
-              <SelectItem value="rejected">Rechazada</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-[1fr_180px_180px] lg:items-end">
         <div className="col-span-2 space-y-1.5 lg:col-span-1">
           <Label className="text-sm font-medium">Proveedor</Label>
           <Select
@@ -183,11 +170,7 @@ export function InvoiceFilters({ suppliers }: { suppliers: Supplier[] }) {
             size="sm"
             className="text-muted-foreground"
             disabled={pending}
-            onClick={() =>
-              startTransition(() =>
-                router.replace("/facturas", { scroll: false }),
-              )
-            }
+            onClick={clearFilters}
           >
             <X className="size-4" />
             Limpiar filtros

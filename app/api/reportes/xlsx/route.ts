@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import * as XLSX from "xlsx";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/auth/current-user";
+import {
+  applyFrontFilter,
+  resolveInvoiceScope,
+} from "@/lib/invoices/business-front";
 import { formatDate, formatDateTime } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
@@ -42,6 +46,8 @@ export async function GET(req: NextRequest) {
   const { fromIso, toIso } = dateRange(from, to);
 
   const supabase = await createClient();
+  // Compras exporta solo su frente de negocio; admin exporta todo.
+  const scope = resolveInvoiceScope(me);
 
   const wb = XLSX.utils.book_new();
 
@@ -51,9 +57,11 @@ export async function GET(req: NextRequest) {
       .select(
         "invoice_number, supplier_name, supplier_nit, total_amount, issue_date, received_at, completed_at, current_approvals, required_approvals",
       )
-      .eq("status", "approved")
+      // Incluye 'completed' (aprobadas ya entregadas a contabilidad).
+      .in("status", ["approved", "completed"])
       .order("completed_at", { ascending: false });
     q = applyDateFilter(q, fromIso, toIso);
+    q = applyFrontFilter(q, scope);
     const { data } = await q;
 
     const rows = (data ?? []).map((r) => ({
@@ -79,6 +87,7 @@ export async function GET(req: NextRequest) {
       .eq("status", "pending")
       .order("received_at", { ascending: true });
     q = applyDateFilter(q, fromIso, toIso);
+    q = applyFrontFilter(q, scope);
     const { data } = await q;
 
     const now = Date.now();
@@ -109,6 +118,7 @@ export async function GET(req: NextRequest) {
       .eq("status", "rejected")
       .order("completed_at", { ascending: false });
     q = applyDateFilter(q, fromIso, toIso);
+    q = applyFrontFilter(q, scope);
     const { data: invoices } = await q;
 
     // Get rejection details from approvals
@@ -149,7 +159,7 @@ export async function GET(req: NextRequest) {
     let q = supabase
       .from("approvals")
       .select(
-        "status, approved_at, notes, approvers(name, email), invoices(invoice_number, supplier_name, supplier_nit, total_amount, received_at)",
+        "status, approved_at, notes, approvers(name, email), invoices(invoice_number, supplier_name, supplier_nit, total_amount, received_at, business_front)",
       )
       .order("approved_at", { ascending: false });
 
@@ -165,7 +175,16 @@ export async function GET(req: NextRequest) {
       pending: "Pendiente",
     };
 
-    const rows = (data ?? []).map((r) => {
+    // Compras solo exporta la actividad de las facturas de su frente.
+    const scopedData = scope
+      ? (data ?? []).filter(
+          (r) =>
+            (r.invoices as { business_front: string | null } | null)
+              ?.business_front === scope,
+        )
+      : data ?? [];
+
+    const rows = scopedData.map((r) => {
       const inv = r.invoices as {
         invoice_number: string;
         supplier_name: string;
@@ -199,6 +218,7 @@ export async function GET(req: NextRequest) {
       )
       .order("received_at", { ascending: false });
     invQ = applyDateFilter(invQ, fromIso, toIso);
+    invQ = applyFrontFilter(invQ, scope);
     const { data: invoices } = await invQ;
 
     const statusLabel: Record<string, string> = {
@@ -227,11 +247,19 @@ export async function GET(req: NextRequest) {
     const { data: approvals } = await supabase
       .from("approvals")
       .select(
-        "status, approved_at, notes, approvers(name, email), invoices(invoice_number, supplier_name, total_amount)",
+        "status, approved_at, notes, approvers(name, email), invoices(invoice_number, supplier_name, total_amount, business_front)",
       )
       .order("approved_at", { ascending: false });
 
-    const aprRows = (approvals ?? []).map((a) => {
+    const scopedApprovals = scope
+      ? (approvals ?? []).filter(
+          (a) =>
+            (a.invoices as { business_front: string | null } | null)
+              ?.business_front === scope,
+        )
+      : approvals ?? [];
+
+    const aprRows = scopedApprovals.map((a) => {
       const inv = a.invoices as {
         invoice_number: string;
         supplier_name: string;

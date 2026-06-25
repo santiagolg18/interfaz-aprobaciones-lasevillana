@@ -20,7 +20,11 @@ export default async function DashboardLayout({
 
   return (
     <div className="min-h-screen">
-      <Sidebar userEmail={me.user.email ?? "—"} role={me.role} />
+      <Sidebar
+        userEmail={me.user.email ?? "—"}
+        role={me.role}
+        businessFront={me.profile?.business_front ?? null}
+      />
       <main className="lg:pl-64">
         <div className="px-4 py-6 sm:px-6 lg:px-8">{children}</div>
       </main>

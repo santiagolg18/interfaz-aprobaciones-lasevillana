@@ -33,7 +33,7 @@ export default async function EditarUsuarioPage({
   const supabase = await createClient();
   const { data: user } = await supabase
     .from("approvers")
-    .select("id, name, email, role, is_active, auth_user_id")
+    .select("id, name, email, role, is_active, auth_user_id, business_front")
     .eq("id", id)
     .maybeSingle();
 
@@ -57,6 +57,7 @@ export default async function EditarUsuarioPage({
             email: user.email,
             role: user.role,
             is_active: user.is_active ?? true,
+            business_front: user.business_front ?? null,
           }}
           error={error}
         />

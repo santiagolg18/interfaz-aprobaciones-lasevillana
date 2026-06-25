@@ -74,7 +74,8 @@ export default async function MisAprobacionesPage({
       { count: "exact" },
     )
     .eq("approver_id", approverId)
-    .neq("status", "pending")
+    // Solo decisiones reales; excluye 'pending' y 'blocked' (en espera de turno).
+    .in("status", ["approved", "rejected"])
     .order("approved_at", { ascending: false });
 
   if (history_status === "approved" || history_status === "rejected") {
@@ -91,10 +92,14 @@ export default async function MisAprobacionesPage({
     supabase
       .from("approvals")
       .select(
-        "id, status, created_at, invoices(id, invoice_number, supplier_name, supplier_nit, total_amount, received_at, status, current_approvals, required_approvals)",
+        "id, status, created_at, invoices!inner(id, invoice_number, supplier_name, supplier_nit, total_amount, received_at, status, current_approvals, required_approvals)",
       )
       .eq("approver_id", approverId)
       .eq("status", "pending")
+      // Solo facturas ya liberadas por compras. Una aprobación puede quedar
+      // 'pending' mientras la factura sigue en revisión (datos heredados); el
+      // inner join + este filtro evitan que el aprobador vea facturas no liberadas.
+      .eq("invoices.status", "pending")
       .order("created_at", { ascending: false }),
     historyQuery,
   ]);

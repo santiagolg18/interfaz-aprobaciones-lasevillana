@@ -11,6 +11,10 @@ const APPROVER_ALLOWED = ["/mis-aprobaciones"];
 // Rutas solo para admin.
 const ADMIN_ONLY = ["/configuracion"];
 
+// Subrutas de /configuracion permitidas a Compras (el resto de Configuración es
+// solo admin). El checklist de revisión lo gestiona también Compras.
+const PURCHASING_ALLOWED = ["/configuracion/checklist"];
+
 function startsWithAny(pathname: string, prefixes: string[]) {
   return prefixes.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 }
@@ -121,7 +125,11 @@ export async function updateSession(request: NextRequest) {
       }
     }
 
-    if (role === "purchasing" && startsWithAny(pathname, ADMIN_ONLY)) {
+    if (
+      role === "purchasing" &&
+      startsWithAny(pathname, ADMIN_ONLY) &&
+      !startsWithAny(pathname, PURCHASING_ALLOWED)
+    ) {
       const url = request.nextUrl.clone();
       url.pathname = "/facturas";
       url.search = "";

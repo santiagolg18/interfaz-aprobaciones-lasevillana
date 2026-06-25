@@ -1,0 +1,310 @@
+"use client";
+
+import { useMemo, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import {
+  CheckCheck,
+  Download,
+  FileWarning,
+  Loader2,
+  Printer,
+  Undo2,
+} from "lucide-react";
+import { toast } from "sonner";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+import { formatCOP, formatDateTime } from "@/lib/format";
+import {
+  markSentToAccounting,
+  unmarkSentToAccounting,
+} from "@/app/(dashboard)/facturas/lifecycle-actions";
+
+export type PrintQueueItem = {
+  id: string;
+  invoice_number: string;
+  supplier_name: string;
+  supplier_nit: string;
+  total_amount: number;
+  received_at: string | null;
+  pdfUrl: string | null;
+  pdfReady: boolean;
+};
+
+function PdfButton({ item }: { item: PrintQueueItem }) {
+  if (!item.pdfReady || !item.pdfUrl) {
+    return (
+      <span
+        className="inline-flex items-center gap-1.5 rounded-md border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-xs font-medium text-amber-700"
+        title="El PDF final aún no está disponible"
+      >
+        <FileWarning className="size-3.5" />
+        PDF en proceso
+      </span>
+    );
+  }
+  return (
+    <Button asChild size="sm" className="gap-1.5">
+      <a href={item.pdfUrl} target="_blank" rel="noopener noreferrer">
+        <Download className="size-4" />
+        Descargar / Imprimir
+      </a>
+    </Button>
+  );
+}
+
+export function PrintQueue({
+  items,
+  mode,
+}: {
+  items: PrintQueueItem[];
+  mode: "ready" | "completed";
+}) {
+  const router = useRouter();
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [pending, startTransition] = useTransition();
+
+  const selectableIds = useMemo(
+    () => items.filter((i) => i.pdfReady).map((i) => i.id),
+    [items],
+  );
+  const allSelected =
+    selectableIds.length > 0 && selectableIds.every((id) => selected.has(id));
+  const someSelected = selected.size > 0;
+
+  function toggle(id: string, checked: boolean) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (checked) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  }
+
+  function toggleAll(checked: boolean) {
+    setSelected(checked ? new Set(selectableIds) : new Set());
+  }
+
+  function openSelected() {
+    const urls = items
+      .filter((i) => selected.has(i.id) && i.pdfUrl)
+      .map((i) => i.pdfUrl!);
+    if (urls.length === 0) {
+      toast.error("Las seleccionadas no tienen PDF disponible");
+      return;
+    }
+    urls.forEach((u) => window.open(u, "_blank", "noopener,noreferrer"));
+  }
+
+  function sendSelected() {
+    const ids = Array.from(selected);
+    startTransition(async () => {
+      const res = await markSentToAccounting(ids);
+      if (!res.ok) {
+        toast.error(res.error ?? "No se pudo completar la acción");
+        return;
+      }
+      toast.success(
+        `${res.updated ?? ids.length} factura(s) enviada(s) a contabilidad`,
+      );
+      setSelected(new Set());
+      router.refresh();
+    });
+  }
+
+  function revert(id: string) {
+    startTransition(async () => {
+      const res = await unmarkSentToAccounting(id);
+      if (!res.ok) {
+        toast.error(res.error ?? "No se pudo revertir");
+        return;
+      }
+      toast.success("Factura devuelta a “Listas para imprimir”");
+      router.refresh();
+    });
+  }
+
+  return (
+    <div className="space-y-3">
+      {/* Barra de acciones para la selección (solo modo "ready") */}
+      {mode === "ready" && someSelected ? (
+        <div className="sticky top-2 z-10 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-primary/20 bg-primary/5 px-4 py-2.5 shadow-[0_1px_2px_0_rgb(0_0_0/0.04)]">
+          <span className="text-sm font-medium text-primary">
+            {selected.size} seleccionada{selected.size === 1 ? "" : "s"}
+          </span>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={openSelected}
+              disabled={pending}
+              className="gap-1.5"
+            >
+              <Printer className="size-4" />
+              Abrir / Imprimir
+            </Button>
+            <Button
+              size="sm"
+              onClick={sendSelected}
+              disabled={pending}
+              className="gap-1.5"
+            >
+              {pending ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <CheckCheck className="size-4" />
+              )}
+              Marcar enviadas a contabilidad
+            </Button>
+          </div>
+        </div>
+      ) : null}
+
+      {/* Mobile: cards */}
+      <ul className="md:hidden space-y-2">
+        {items.map((inv) => (
+          <li
+            key={inv.id}
+            className="rounded-xl border bg-white p-4 shadow-[0_1px_2px_0_rgb(0_0_0/0.03)]"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0 flex-1">
+                <div className="text-sm font-medium text-neutral-800 truncate">
+                  {inv.supplier_name}
+                </div>
+                <Link
+                  href={`/facturas/${inv.id}`}
+                  className="mt-0.5 inline-block text-xs text-muted-foreground tabular-nums truncate underline-offset-2 hover:underline"
+                >
+                  {inv.invoice_number}
+                  {inv.supplier_nit ? ` · NIT ${inv.supplier_nit}` : ""}
+                </Link>
+              </div>
+              {mode === "ready" ? (
+                <Checkbox
+                  checked={selected.has(inv.id)}
+                  disabled={!inv.pdfReady}
+                  onCheckedChange={(c) => toggle(inv.id, c === true)}
+                  aria-label={`Seleccionar factura ${inv.invoice_number}`}
+                />
+              ) : null}
+            </div>
+            <div className="mt-2 flex items-end justify-between gap-3">
+              <span className="text-xl font-bold text-neutral-900 tabular-nums">
+                {formatCOP(inv.total_amount)}
+              </span>
+              <span className="text-xs text-muted-foreground">
+                {formatDateTime(inv.received_at)}
+              </span>
+            </div>
+            <div className="mt-3 flex items-center gap-2">
+              <PdfButton item={inv} />
+              {mode === "completed" ? (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => revert(inv.id)}
+                  disabled={pending}
+                  className="gap-1.5 text-muted-foreground"
+                >
+                  <Undo2 className="size-4" />
+                  Revertir
+                </Button>
+              ) : null}
+            </div>
+          </li>
+        ))}
+      </ul>
+
+      {/* Desktop: table */}
+      <div className="hidden md:block rounded-lg border bg-white overflow-hidden shadow-[0_1px_2px_0_rgb(0_0_0/0.03)]">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              {mode === "ready" ? (
+                <TableHead className="w-10">
+                  <Checkbox
+                    checked={allSelected}
+                    disabled={selectableIds.length === 0}
+                    onCheckedChange={(c) => toggleAll(c === true)}
+                    aria-label="Seleccionar todas"
+                  />
+                </TableHead>
+              ) : null}
+              <TableHead>Número</TableHead>
+              <TableHead>Proveedor</TableHead>
+              <TableHead className="text-right">Monto</TableHead>
+              <TableHead>Recibida</TableHead>
+              <TableHead className="text-right">Documento</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {items.map((inv) => (
+              <TableRow
+                key={inv.id}
+                className={cn(selected.has(inv.id) && "bg-primary/5")}
+              >
+                {mode === "ready" ? (
+                  <TableCell className="w-10">
+                    <Checkbox
+                      checked={selected.has(inv.id)}
+                      disabled={!inv.pdfReady}
+                      onCheckedChange={(c) => toggle(inv.id, c === true)}
+                      aria-label={`Seleccionar factura ${inv.invoice_number}`}
+                    />
+                  </TableCell>
+                ) : null}
+                <TableCell className="font-medium text-neutral-900 whitespace-nowrap">
+                  <Link
+                    href={`/facturas/${inv.id}`}
+                    className="underline-offset-2 hover:underline"
+                  >
+                    {inv.invoice_number}
+                  </Link>
+                </TableCell>
+                <TableCell>
+                  <div className="text-sm">{inv.supplier_name}</div>
+                  <div className="text-xs text-muted-foreground tabular-nums">
+                    NIT {inv.supplier_nit}
+                  </div>
+                </TableCell>
+                <TableCell className="text-right whitespace-nowrap tabular-nums">
+                  {formatCOP(inv.total_amount)}
+                </TableCell>
+                <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
+                  {formatDateTime(inv.received_at)}
+                </TableCell>
+                <TableCell className="text-right">
+                  <div className="flex items-center justify-end gap-2">
+                    <PdfButton item={inv} />
+                    {mode === "completed" ? (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => revert(inv.id)}
+                        disabled={pending}
+                        className="gap-1.5 text-muted-foreground"
+                      >
+                        <Undo2 className="size-4" />
+                        Revertir
+                      </Button>
+                    ) : null}
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+    </div>
+  );
+}

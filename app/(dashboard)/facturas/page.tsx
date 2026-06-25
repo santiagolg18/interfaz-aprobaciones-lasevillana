@@ -1,31 +1,32 @@
 import Link from "next/link";
-import { Paperclip, Plus, Receipt, X } from "lucide-react";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { Plus, Receipt, X } from "lucide-react";
 import { InvoiceFilters } from "@/components/invoice-filters";
-import { InvoiceQuickFilters } from "@/components/invoice-quick-filters";
-import { SortableHeader } from "@/components/sortable-header";
+import { InvoiceTabs } from "@/components/invoice-tabs";
+import { PrintQueue, type PrintQueueItem } from "@/components/print-queue";
+import {
+  InvoiceTableSelectable,
+} from "@/components/invoice-table-selectable";
 import { MobileSortSelect } from "@/components/mobile-sort-select";
-import { Money } from "@/components/money";
-import { StatusBadge } from "@/components/status-badge";
-import { ApprovalProgress } from "@/components/approval-progress";
 import { EmptyState } from "@/components/empty-state";
 import { PageHeader } from "@/components/page-header";
 import { Pagination } from "@/components/pagination";
 import { Button } from "@/components/ui/button";
-import {
-  InvoiceNotesPopover,
-  type InvoiceNote,
-} from "@/components/invoice-notes-popover";
+import type { InvoiceNote } from "@/components/invoice-notes-popover";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/auth/current-user";
-import { formatCOP, formatDateTime } from "@/lib/format";
+import { getSignedStorageUrl } from "@/lib/supabase/storage";
+import {
+  applyFrontFilter,
+  frontLabel,
+  resolveInvoiceScope,
+} from "@/lib/invoices/business-front";
+import { formatCOP } from "@/lib/format";
+import {
+  TABS,
+  resolveTab,
+  tabDef,
+  type TabKey,
+} from "./tabs";
 
 export const dynamic = "force-dynamic";
 
@@ -33,7 +34,7 @@ const PAGE_SIZE = 25;
 const DEFAULT_SORT = "received_desc";
 
 type SearchParams = Promise<{
-  status?: string;
+  tab?: string;
   supplier_id?: string;
   from?: string;
   to?: string;
@@ -41,21 +42,10 @@ type SearchParams = Promise<{
   min?: string;
   max?: string;
   po?: string;
-  quick?: string;
   sort?: string;
   page?: string;
+  front?: string;
 }>;
-
-const STATUS_LABEL: Record<string, string> = {
-  pending: "Pendiente",
-  approved: "Aprobada",
-  rejected: "Rechazada",
-};
-
-const QUICK_LABEL: Record<string, string> = {
-  aging: "Atrasadas (>7 días)",
-  recent: "Recientes (24h)",
-};
 
 const PO_LABEL: Record<string, string> = {
   with: "Con OC",
@@ -89,167 +79,127 @@ export default async function FacturasPage({
   searchParams: SearchParams;
 }) {
   const sp = await searchParams;
-  const { status, supplier_id, from, to, q, min, max, po, quick, sort, page } = sp;
+  const { tab, supplier_id, from, to, q, min, max, po, sort, page, front } = sp;
   const supabase = await createClient();
   const me = await getCurrentUser();
   const canCreateInvoice = me?.role === "admin" || me?.role === "purchasing";
+  // Frente de negocio efectivo: Compras queda fijado a su frente; Admin usa el
+  // que pida la URL (las dos secciones del menu). null = sin filtro de frente.
+  const scope = resolveInvoiceScope(me, front);
 
-  const currentSort = sort && /^(received|amount)_(asc|desc)$/.test(sort)
-    ? sort
-    : DEFAULT_SORT;
+  const activeTab = resolveTab(tab);
+  const def = tabDef(activeTab);
+  const isPrintTab = activeTab === "listas" || activeTab === "completadas";
+
+  const currentSort =
+    sort && /^(received|amount)_(asc|desc)$/.test(sort) ? sort : DEFAULT_SORT;
   const currentPage = Math.max(1, parseInt(page ?? "1", 10) || 1);
 
-  // Aging cutoff = hace 7 días (para quick=aging y para el conteo).
-  // Date.now() es legítimo en un Server Component que re-ejecuta en cada request.
-  /* eslint-disable react-hooks/purity */
-  const agingCutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-  const recentCutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-  /* eslint-enable react-hooks/purity */
+  const order = sortToOrder(currentSort);
+  const offset = (currentPage - 1) * PAGE_SIZE;
+  const qPattern = q ? `%${q.trim()}%` : null;
+  const minNum = min && !Number.isNaN(Number(min)) ? Number(min) : null;
+  const maxNum = max && !Number.isNaN(Number(max)) ? Number(max) : null;
 
+  // Query principal de la pestaña activa (paginada).
   let query = supabase
     .from("invoices")
     .select(
-      "id, invoice_number, supplier_id, supplier_name, supplier_nit, total_amount, received_at, status, current_approvals, required_approvals, po_storage_path",
+      "id, invoice_number, supplier_id, supplier_name, supplier_nit, total_amount, received_at, status, current_approvals, required_approvals, po_storage_path, final_pdf_path, pdf_generation_status",
       { count: "exact" },
     );
-
-  const order = sortToOrder(currentSort);
-  query = query.order(order.column, { ascending: order.ascending });
-
-  if (status) query = query.eq("status", status);
+  if (def.statuses === null) query = query.neq("status", "archived");
+  else query = query.in("status", def.statuses);
+  query = applyFrontFilter(query, scope);
   if (supplier_id) query = query.eq("supplier_id", supplier_id);
   if (from) query = query.gte("received_at", `${from}T00:00:00-05:00`);
   if (to) query = query.lte("received_at", `${to}T23:59:59-05:00`);
-  if (q) {
-    const pattern = `%${q.trim()}%`;
+  if (qPattern) {
     query = query.or(
-      `invoice_number.ilike.${pattern},supplier_name.ilike.${pattern},supplier_nit.ilike.${pattern}`,
+      `invoice_number.ilike.${qPattern},supplier_name.ilike.${qPattern},supplier_nit.ilike.${qPattern}`,
     );
   }
-  if (min) {
-    const n = Number(min);
-    if (!Number.isNaN(n)) query = query.gte("total_amount", n);
-  }
-  if (max) {
-    const n = Number(max);
-    if (!Number.isNaN(n)) query = query.lte("total_amount", n);
-  }
+  if (minNum !== null) query = query.gte("total_amount", minNum);
+  if (maxNum !== null) query = query.lte("total_amount", maxNum);
   if (po === "with") query = query.not("po_storage_path", "is", null);
   if (po === "without") query = query.is("po_storage_path", null);
-  if (quick === "aging") {
-    query = query.eq("status", "pending").lte("received_at", agingCutoff);
-  } else if (quick === "recent") {
-    query = query.gte("received_at", recentCutoff);
-  }
+  query = query
+    .order(order.column, { ascending: order.ascending })
+    .range(offset, offset + PAGE_SIZE - 1);
 
-  const offset = (currentPage - 1) * PAGE_SIZE;
-  query = query.range(offset, offset + PAGE_SIZE - 1);
-
-  // Una query auxiliar para el mini-resumen (totales) sin paginar.
+  // Totales (sin paginar) para el mini-resumen de la pestaña actual.
   let totalsQuery = supabase
     .from("invoices")
     .select("total_amount", { count: "exact" });
-  if (status) totalsQuery = totalsQuery.eq("status", status);
+  if (def.statuses === null) totalsQuery = totalsQuery.neq("status", "archived");
+  else totalsQuery = totalsQuery.in("status", def.statuses);
+  totalsQuery = applyFrontFilter(totalsQuery, scope);
   if (supplier_id) totalsQuery = totalsQuery.eq("supplier_id", supplier_id);
   if (from) totalsQuery = totalsQuery.gte("received_at", `${from}T00:00:00-05:00`);
   if (to) totalsQuery = totalsQuery.lte("received_at", `${to}T23:59:59-05:00`);
-  if (q) {
-    const pattern = `%${q.trim()}%`;
+  if (qPattern) {
     totalsQuery = totalsQuery.or(
-      `invoice_number.ilike.${pattern},supplier_name.ilike.${pattern},supplier_nit.ilike.${pattern}`,
+      `invoice_number.ilike.${qPattern},supplier_name.ilike.${qPattern},supplier_nit.ilike.${qPattern}`,
     );
   }
-  if (min) {
-    const n = Number(min);
-    if (!Number.isNaN(n)) totalsQuery = totalsQuery.gte("total_amount", n);
-  }
-  if (max) {
-    const n = Number(max);
-    if (!Number.isNaN(n)) totalsQuery = totalsQuery.lte("total_amount", n);
-  }
+  if (minNum !== null) totalsQuery = totalsQuery.gte("total_amount", minNum);
+  if (maxNum !== null) totalsQuery = totalsQuery.lte("total_amount", maxNum);
   if (po === "with") totalsQuery = totalsQuery.not("po_storage_path", "is", null);
   if (po === "without") totalsQuery = totalsQuery.is("po_storage_path", null);
-  if (quick === "aging") {
-    totalsQuery = totalsQuery
-      .eq("status", "pending")
-      .lte("received_at", agingCutoff);
-  } else if (quick === "recent") {
-    totalsQuery = totalsQuery.gte("received_at", recentCutoff);
-  }
 
-  // Conteos por quick filter. Aplicamos los filtros agnósticos (no status/quick/po)
-  // para que los contadores reflejen el universo dentro del resto de filtros.
-  const headCount = (
-    s?: "pending" | "approved" | "rejected",
-    opts?: { aging?: boolean; recent?: boolean; noPo?: boolean },
-  ) => {
-    let b = supabase
-      .from("invoices")
-      .select("id", { count: "exact", head: true });
+  // Conteo por pestaña, respetando los filtros agnósticos activos.
+  const tabCount = (statuses: string[] | null) => {
+    let b = supabase.from("invoices").select("id", { count: "exact", head: true });
+    if (statuses === null) b = b.neq("status", "archived");
+    else b = b.in("status", statuses);
+    b = applyFrontFilter(b, scope);
     if (supplier_id) b = b.eq("supplier_id", supplier_id);
     if (from) b = b.gte("received_at", `${from}T00:00:00-05:00`);
     if (to) b = b.lte("received_at", `${to}T23:59:59-05:00`);
-    if (q) {
-      const pattern = `%${q.trim()}%`;
+    if (qPattern) {
       b = b.or(
-        `invoice_number.ilike.${pattern},supplier_name.ilike.${pattern},supplier_nit.ilike.${pattern}`,
+        `invoice_number.ilike.${qPattern},supplier_name.ilike.${qPattern},supplier_nit.ilike.${qPattern}`,
       );
     }
-    if (min) {
-      const n = Number(min);
-      if (!Number.isNaN(n)) b = b.gte("total_amount", n);
-    }
-    if (max) {
-      const n = Number(max);
-      if (!Number.isNaN(n)) b = b.lte("total_amount", n);
-    }
-    if (s) b = b.eq("status", s);
-    if (opts?.aging) b = b.eq("status", "pending").lte("received_at", agingCutoff);
-    if (opts?.recent) b = b.gte("received_at", recentCutoff);
-    if (opts?.noPo) b = b.is("po_storage_path", null);
+    if (minNum !== null) b = b.gte("total_amount", minNum);
+    if (maxNum !== null) b = b.lte("total_amount", maxNum);
+    if (po === "with") b = b.not("po_storage_path", "is", null);
+    if (po === "without") b = b.is("po_storage_path", null);
     return b;
   };
 
-  const [
-    invoicesResult,
-    suppliersResult,
-    totalsResult,
-    allCount,
-    pendingCount,
-    approvedCount,
-    rejectedCount,
-    noPoCount,
-    agingCount,
-    recentCount,
-  ] = await Promise.all([
-    query,
-    supabase.from("suppliers").select("id, nombre").order("nombre"),
-    totalsQuery,
-    headCount(),
-    headCount("pending"),
-    headCount("approved"),
-    headCount("rejected"),
-    headCount(undefined, { noPo: true }),
-    headCount(undefined, { aging: true }),
-    headCount(undefined, { recent: true }),
-  ]);
+  const [invoicesResult, suppliersResult, totalsResult, ...tabCountResults] =
+    await Promise.all([
+      query,
+      supabase.from("suppliers").select("id, nombre").order("nombre"),
+      totalsQuery,
+      ...TABS.map((t) => tabCount(t.statuses)),
+    ]);
 
   const { data: invoices, error, count } = invoicesResult;
   const { data: suppliers } = suppliersResult;
   const { data: totalsData } = totalsResult;
 
-  // Notas de aprobadores para las facturas visibles en esta página. Query separada
-  // para no inflar la principal ni complicar la paginación con joins.
+  const counts = TABS.reduce(
+    (acc, t, i) => {
+      acc[t.key] = tabCountResults[i].count ?? 0;
+      return acc;
+    },
+    {} as Record<TabKey, number>,
+  );
+
+  // Notas de aprobadores para las facturas visibles (solo en pestañas con tabla).
   const invoiceIds = (invoices ?? []).map((i) => i.id);
-  const { data: notedApprovals } = invoiceIds.length
-    ? await supabase
-        .from("approvals")
-        .select("invoice_id, status, notes, approved_at, approvers(name)")
-        .in("invoice_id", invoiceIds)
-        .not("notes", "is", null)
-        .neq("notes", "")
-        .order("approved_at", { ascending: true })
-    : { data: [] };
+  const { data: notedApprovals } =
+    invoiceIds.length && !isPrintTab
+      ? await supabase
+          .from("approvals")
+          .select("invoice_id, status, notes, approved_at, approvers(name)")
+          .in("invoice_id", invoiceIds)
+          .not("notes", "is", null)
+          .neq("notes", "")
+          .order("approved_at", { ascending: true })
+      : { data: [] };
 
   const notesByInvoice = new Map<string, InvoiceNote[]>();
   for (const a of notedApprovals ?? []) {
@@ -265,26 +215,62 @@ export default async function FacturasPage({
     notesByInvoice.set(a.invoice_id, list);
   }
 
+  // Posibles duplicados: facturas no archivadas que comparten NIT + número con
+  // otra. Se calcula sobre el universo no archivado (no solo la página visible)
+  // buscando por los números de factura visibles. Cubre también las que entran
+  // por correo, que no pasan por el bloqueo de la creación manual.
+  const duplicateKeys = new Set<string>();
+  if (!isPrintTab && invoiceIds.length > 0) {
+    const visibleNumbers = Array.from(
+      new Set((invoices ?? []).map((i) => i.invoice_number)),
+    );
+    const { data: dupRows } = await applyFrontFilter(
+      supabase
+        .from("invoices")
+        .select("supplier_nit, invoice_number")
+        .neq("status", "archived")
+        .in("invoice_number", visibleNumbers),
+      scope,
+    );
+    const dupCounts = new Map<string, number>();
+    for (const r of dupRows ?? []) {
+      const key = `${r.supplier_nit}|${r.invoice_number}`;
+      dupCounts.set(key, (dupCounts.get(key) ?? 0) + 1);
+    }
+    for (const [key, n] of dupCounts) if (n > 1) duplicateKeys.add(key);
+  }
+
+  // Para las pestañas de impresión: firmar las URLs del PDF final de la página.
+  let printItems: PrintQueueItem[] = [];
+  if (isPrintTab) {
+    printItems = await Promise.all(
+      (invoices ?? []).map(async (inv) => {
+        const pdfUrl = await getSignedStorageUrl(inv.final_pdf_path);
+        return {
+          id: inv.id,
+          invoice_number: inv.invoice_number,
+          supplier_name: inv.supplier_name,
+          supplier_nit: inv.supplier_nit,
+          total_amount: Number(inv.total_amount ?? 0),
+          received_at: inv.received_at,
+          pdfUrl,
+          pdfReady: Boolean(inv.final_pdf_path) && Boolean(pdfUrl),
+        };
+      }),
+    );
+  }
+
   const totalCount = count ?? 0;
   const sumTotal = (totalsData ?? []).reduce(
     (acc, row) => acc + Number(row.total_amount ?? 0),
     0,
   );
-  const totalsCount = totalsResult.count ?? 0;
-  const avgTotal = totalsCount > 0 ? sumTotal / totalsCount : 0;
 
   const supplierMap = new Map((suppliers ?? []).map((s) => [s.id, s.nombre]));
 
   // Chips de filtros activos
   type ActiveFilter = { key: string; label: string; value: string };
   const activeFilters: ActiveFilter[] = [];
-  if (status) {
-    activeFilters.push({
-      key: "status",
-      label: "Estado",
-      value: STATUS_LABEL[status] ?? status,
-    });
-  }
   if (supplier_id) {
     activeFilters.push({
       key: "supplier_id",
@@ -296,25 +282,11 @@ export default async function FacturasPage({
   if (to) activeFilters.push({ key: "to", label: "Hasta", value: to });
   if (q) activeFilters.push({ key: "q", label: "Búsqueda", value: q });
   if (min)
-    activeFilters.push({
-      key: "min",
-      label: "Mín.",
-      value: formatCOP(Number(min)),
-    });
+    activeFilters.push({ key: "min", label: "Mín.", value: formatCOP(Number(min)) });
   if (max)
-    activeFilters.push({
-      key: "max",
-      label: "Máx.",
-      value: formatCOP(Number(max)),
-    });
+    activeFilters.push({ key: "max", label: "Máx.", value: formatCOP(Number(max)) });
   if (po && PO_LABEL[po])
     activeFilters.push({ key: "po", label: "OC", value: PO_LABEL[po] });
-  if (quick && QUICK_LABEL[quick])
-    activeFilters.push({
-      key: "quick",
-      label: "Vista",
-      value: QUICK_LABEL[quick],
-    });
 
   function urlWithout(keyToRemove: string) {
     const params = new URLSearchParams();
@@ -326,18 +298,8 @@ export default async function FacturasPage({
     return qs ? `/facturas?${qs}` : "/facturas";
   }
 
-  const counts = {
-    all: allCount.count ?? 0,
-    pending: pendingCount.count ?? 0,
-    approved: approvedCount.count ?? 0,
-    rejected: rejectedCount.count ?? 0,
-    noPo: noPoCount.count ?? 0,
-    aging: agingCount.count ?? 0,
-    recent: recentCount.count ?? 0,
-  };
-
   const searchParamsRecord: Record<string, string | undefined> = {
-    status,
+    tab: activeTab,
     supplier_id,
     from,
     to,
@@ -345,18 +307,19 @@ export default async function FacturasPage({
     min,
     max,
     po,
-    quick,
     sort: sort && sort !== DEFAULT_SORT ? sort : undefined,
+    front: scope ?? undefined,
   };
 
   const showingFrom = totalCount === 0 ? 0 : offset + 1;
   const showingTo = Math.min(offset + PAGE_SIZE, totalCount);
 
+  const archivable = activeTab === "por_revisar" || activeTab === "archivadas";
+
   return (
     <div className="space-y-5">
       <PageHeader
-        title="Facturas"
-        description="Facturas recibidas y su estado de aprobación."
+        title={scope ? `Facturas · ${frontLabel(scope)}` : "Facturas"}
         actions={
           canCreateInvoice ? (
             <Button asChild size="sm">
@@ -369,11 +332,7 @@ export default async function FacturasPage({
         }
       />
 
-      <InvoiceQuickFilters
-        counts={counts}
-        active={{ status, quick, po }}
-        searchParams={sp}
-      />
+      <InvoiceTabs counts={counts} activeTab={activeTab} searchParams={sp} />
 
       <div className="rounded-lg border bg-white p-4 shadow-[0_1px_2px_0_rgb(0_0_0/0.03)]">
         <InvoiceFilters suppliers={suppliers ?? []} />
@@ -393,6 +352,8 @@ export default async function FacturasPage({
             </span>{" "}
             <span className="text-muted-foreground">
               {totalCount === 1 ? "factura" : "facturas"}
+              {" · "}
+              {def.label}
             </span>
             {totalCount > 0 ? (
               <span className="hidden text-muted-foreground sm:inline">
@@ -400,15 +361,11 @@ export default async function FacturasPage({
                 <span className="font-semibold text-neutral-900">
                   {formatCOP(sumTotal)}
                 </span>
-                {" · Promedio "}
-                <span className="font-semibold text-neutral-900">
-                  {formatCOP(avgTotal)}
-                </span>
               </span>
             ) : null}
           </div>
 
-          {totalCount > 0 ? (
+          {totalCount > 0 && !isPrintTab ? (
             <div className="md:hidden">
               <MobileSortSelect
                 options={SORT_OPTIONS}
@@ -418,19 +375,6 @@ export default async function FacturasPage({
             </div>
           ) : null}
         </div>
-
-        {totalCount > 0 ? (
-          <div className="text-xs text-muted-foreground sm:hidden">
-            Total{" "}
-            <span className="font-semibold text-neutral-900">
-              {formatCOP(sumTotal)}
-            </span>
-            {" · Promedio "}
-            <span className="font-semibold text-neutral-900">
-              {formatCOP(avgTotal)}
-            </span>
-          </div>
-        ) : null}
 
         {activeFilters.length > 0 ? (
           <div className="flex flex-wrap items-center gap-1.5">
@@ -455,168 +399,58 @@ export default async function FacturasPage({
         <div className="rounded-lg border bg-white shadow-[0_1px_2px_0_rgb(0_0_0/0.03)]">
           <EmptyState
             icon={<Receipt />}
-            title="No hay facturas"
+            title={`No hay facturas en “${def.label}”`}
             description={
               activeFilters.length > 0
                 ? "No hay facturas que coincidan con los filtros aplicados."
-                : "Aún no se ha recibido ninguna factura."
+                : "Esta etapa no tiene facturas por ahora."
             }
             action={
               activeFilters.length > 0 ? (
                 <Button asChild variant="outline" size="sm">
-                  <Link href="/facturas">Limpiar filtros</Link>
+                  <Link
+                    href={`/facturas?tab=${activeTab}${scope ? `&front=${scope}` : ""}`}
+                  >
+                    Limpiar filtros
+                  </Link>
                 </Button>
               ) : undefined
             }
           />
         </div>
+      ) : isPrintTab ? (
+        <PrintQueue
+          items={printItems}
+          mode={activeTab === "listas" ? "ready" : "completed"}
+        />
       ) : (
+        <InvoiceTableSelectable
+          invoices={(invoices ?? []).map((inv) => ({
+            id: inv.id,
+            invoice_number: inv.invoice_number,
+            supplier_name: inv.supplier_name,
+            supplier_nit: inv.supplier_nit,
+            total_amount: inv.total_amount,
+            received_at: inv.received_at,
+            status: inv.status,
+            current_approvals: inv.current_approvals,
+            required_approvals: inv.required_approvals,
+            po_storage_path: inv.po_storage_path,
+            isDuplicate: duplicateKeys.has(
+              `${inv.supplier_nit}|${inv.invoice_number}`,
+            ),
+          }))}
+          notes={Object.fromEntries(notesByInvoice)}
+          archivable={archivable}
+          activeTab={activeTab}
+          canManage={canCreateInvoice}
+          currentSort={currentSort}
+          searchParams={sp}
+        />
+      )}
+
+      {totalCount > 0 ? (
         <>
-          {/* Mobile: cards */}
-          <ul className="md:hidden space-y-2">
-            {(invoices ?? []).map((inv) => (
-              <li key={inv.id}>
-                <Link
-                  href={`/facturas/${inv.id}`}
-                  className="block rounded-xl border bg-white p-4 shadow-[0_1px_2px_0_rgb(0_0_0/0.03)] active:bg-neutral-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0 flex-1">
-                      <div className="text-sm font-medium text-neutral-800 truncate">
-                        {inv.supplier_name}
-                      </div>
-                      <div className="mt-0.5 text-xs text-muted-foreground tabular-nums truncate inline-flex items-center gap-1">
-                        {inv.invoice_number}
-                        {inv.po_storage_path ? (
-                          <Paperclip
-                            className="size-3 text-muted-foreground"
-                            aria-label="Orden de compra cargada"
-                          />
-                        ) : null}
-                        {inv.supplier_nit ? ` · NIT ${inv.supplier_nit}` : ""}
-                      </div>
-                    </div>
-                    <StatusBadge status={inv.status} />
-                  </div>
-                  <div className="mt-2 flex items-end justify-between gap-3">
-                    <Money
-                      value={inv.total_amount}
-                      className="text-xl font-bold text-neutral-900"
-                    />
-                    <div className="flex items-center gap-2">
-                      {notesByInvoice.has(inv.id) ? (
-                        <InvoiceNotesPopover
-                          notes={notesByInvoice.get(inv.id)!}
-                        />
-                      ) : null}
-                      <ApprovalProgress
-                        current={inv.current_approvals}
-                        required={inv.required_approvals}
-                        status={inv.status}
-                        size="md"
-                      />
-                    </div>
-                  </div>
-                  <div className="mt-1 text-xs text-muted-foreground">
-                    Recibida {formatDateTime(inv.received_at)}
-                  </div>
-                </Link>
-              </li>
-            ))}
-          </ul>
-
-          {/* Desktop: table */}
-          <div className="hidden md:block rounded-lg border bg-white overflow-hidden shadow-[0_1px_2px_0_rgb(0_0_0/0.03)]">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>
-                    <SortableHeader
-                      label="Número"
-                      field="invoice_number"
-                      currentSort={currentSort}
-                      searchParams={sp}
-                      pathname="/facturas"
-                      defaultDirection="asc"
-                    />
-                  </TableHead>
-                  <TableHead>Proveedor</TableHead>
-                  <TableHead className="text-right">
-                    <SortableHeader
-                      label="Monto"
-                      field="amount"
-                      currentSort={currentSort}
-                      searchParams={sp}
-                      pathname="/facturas"
-                      align="right"
-                    />
-                  </TableHead>
-                  <TableHead>
-                    <SortableHeader
-                      label="Recibida"
-                      field="received"
-                      currentSort={currentSort}
-                      searchParams={sp}
-                      pathname="/facturas"
-                    />
-                  </TableHead>
-                  <TableHead>Estado</TableHead>
-                  <TableHead>Progreso</TableHead>
-                  <TableHead className="w-12 text-center">Notas</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {(invoices ?? []).map((inv) => (
-                  <TableRow key={inv.id} className="relative cursor-pointer">
-                    <TableCell className="font-medium text-neutral-900 whitespace-nowrap">
-                      <Link
-                        href={`/facturas/${inv.id}`}
-                        className="inline-flex items-center gap-1.5 after:absolute after:inset-0 after:content-[''] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2 rounded-sm"
-                      >
-                        {inv.invoice_number}
-                        {inv.po_storage_path ? (
-                          <Paperclip
-                            className="size-3.5 text-muted-foreground"
-                            aria-label="Orden de compra cargada"
-                          />
-                        ) : null}
-                      </Link>
-                    </TableCell>
-                    <TableCell>
-                      <div className="text-sm">{inv.supplier_name}</div>
-                      <div className="text-xs text-muted-foreground tabular-nums">
-                        NIT {inv.supplier_nit}
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-right whitespace-nowrap">
-                      <Money value={inv.total_amount} />
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
-                      {formatDateTime(inv.received_at)}
-                    </TableCell>
-                    <TableCell>
-                      <StatusBadge status={inv.status} />
-                    </TableCell>
-                    <TableCell>
-                      <ApprovalProgress
-                        current={inv.current_approvals}
-                        required={inv.required_approvals}
-                        status={inv.status}
-                      />
-                    </TableCell>
-                    <TableCell className="w-12 text-center">
-                      {notesByInvoice.has(inv.id) ? (
-                        <InvoiceNotesPopover
-                          notes={notesByInvoice.get(inv.id)!}
-                        />
-                      ) : null}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-
           <Pagination
             basePath="/facturas"
             page={currentPage}
@@ -624,16 +458,13 @@ export default async function FacturasPage({
             total={totalCount}
             searchParams={searchParamsRecord}
           />
-
-          {totalCount > 0 ? (
-            <p className="text-xs text-muted-foreground text-center tabular-nums">
-              Mostrando {showingFrom.toLocaleString("es-CO")}–
-              {showingTo.toLocaleString("es-CO")} de{" "}
-              {totalCount.toLocaleString("es-CO")}
-            </p>
-          ) : null}
+          <p className="text-xs text-muted-foreground text-center tabular-nums">
+            Mostrando {showingFrom.toLocaleString("es-CO")}–
+            {showingTo.toLocaleString("es-CO")} de{" "}
+            {totalCount.toLocaleString("es-CO")}
+          </p>
         </>
-      )}
+      ) : null}
     </div>
   );
 }

@@ -13,6 +13,11 @@ CREATE TABLE suppliers (
   nit VARCHAR(20) NOT NULL UNIQUE,
   name TEXT NOT NULL,
   required_approvals INT NOT NULL DEFAULT 1,
+  -- Modo de aprobación por defecto del proveedor (heredable/editable por factura):
+  --   'parallel'   = todos los aprobadores a la vez (independiente)
+  --   'sequential' = en cascada, uno tras otro por approval_order
+  approval_mode VARCHAR(12) NOT NULL DEFAULT 'parallel'
+    CHECK (approval_mode IN ('parallel', 'sequential')),
   created_at TIMESTAMPTZ DEFAULT now()
 );
 
@@ -56,9 +61,25 @@ CREATE TABLE invoices (
   xml_raw JSONB,
   pdf_storage_path TEXT,
   final_pdf_path TEXT,
-  status VARCHAR(20) DEFAULT 'pending',
+  -- Estados: 'in_review' (revisión de compras, default), 'review_rejected'
+  -- (compras halló un problema; recuperable), 'pending' (liberada, en aprobación),
+  -- 'approved' (aprobada, lista para imprimir), 'rejected',
+  -- 'archived' (registrada pero no requiere flujo; manual, reversible),
+  -- 'completed' (aprobada, impresa y entregada a contabilidad; reversible).
+  -- Ver sql/02_facturas_lifecycle.sql para las columnas de auditoría asociadas.
+  status VARCHAR(20) DEFAULT 'in_review',
   required_approvals INT NOT NULL DEFAULT 1,
   current_approvals INT NOT NULL DEFAULT 0,
+  -- Modo de aprobación de ESTA factura (se precarga del proveedor, editable):
+  -- 'parallel' | 'sequential'.
+  approval_mode VARCHAR(12) NOT NULL DEFAULT 'parallel'
+    CHECK (approval_mode IN ('parallel', 'sequential')),
+  -- Revisión de compras (compuerta previa a aprobadores):
+  reviewed_by UUID REFERENCES approvers(id),
+  reviewed_at TIMESTAMPTZ,
+  review_notes TEXT,
+  review_checklist JSONB,
+  has_purchase_order BOOLEAN,
   email_message_id TEXT,
   received_at TIMESTAMPTZ DEFAULT now(),
   completed_at TIMESTAMPTZ,
@@ -72,7 +93,11 @@ CREATE TABLE approvals (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   invoice_id UUID NOT NULL REFERENCES invoices(id) ON DELETE CASCADE,
   approver_id UUID NOT NULL REFERENCES approvers(id),
+  -- Estados: 'blocked' (creada pero aún no le toca / factura no liberada),
+  -- 'pending' (su turno), 'approved', 'rejected'.
   status VARCHAR(20) DEFAULT 'pending',
+  -- Orden en la cadena (modo secuencial). En paralelo es indiferente.
+  approval_order INT NOT NULL DEFAULT 1,
   token VARCHAR(64) NOT NULL UNIQUE,
   approved_at TIMESTAMPTZ,
   ip_address TEXT,
@@ -88,6 +113,44 @@ CREATE INDEX idx_invoices_status ON invoices(status);
 CREATE INDEX idx_invoices_supplier ON invoices(supplier_nit);
 CREATE INDEX idx_approvals_token ON approvals(token);
 CREATE INDEX idx_approvals_invoice ON approvals(invoice_id);
+CREATE INDEX idx_approvals_invoice_order ON approvals(invoice_id, approval_order);
+
+-- ============================================================
+-- TABLA: review_checklist_items
+-- Puntos del checklist de revisión de compras (configurables desde la app
+-- por Admin/Compras). Los 'is_required' bloquean la liberación de la factura.
+-- El estado marcado de cada punto por factura se guarda como snapshot en
+-- invoices.review_checklist (JSONB).
+-- ============================================================
+CREATE TABLE review_checklist_items (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  label TEXT NOT NULL,
+  description TEXT,
+  is_required BOOLEAN NOT NULL DEFAULT true,
+  is_active BOOLEAN NOT NULL DEFAULT true,
+  sort_order INT NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+ALTER TABLE review_checklist_items ENABLE ROW LEVEL SECURITY;
+CREATE POLICY auth_all_review_checklist_items
+  ON review_checklist_items
+  FOR ALL TO authenticated
+  USING (true) WITH CHECK (true);
+
+CREATE INDEX idx_review_checklist_items_order
+  ON review_checklist_items(is_active, sort_order);
+
+-- Puntos por defecto
+INSERT INTO review_checklist_items (label, is_required, is_active, sort_order) VALUES
+  ('El proveedor está creado en el sistema', true, true, 1),
+  ('La factura coincide con la orden de compra', true, true, 2),
+  ('Tiene orden de compra adjunta', true, true, 3),
+  ('El precio corresponde al negociado', true, true, 4),
+  ('Las cantidades fueron recibidas', true, true, 5),
+  ('El servicio sí se prestó', true, true, 6),
+  ('El servicio contratado es el facturado', true, true, 7),
+  ('La fecha de pago es la acordada', true, true, 8);
 
 -- ============================================================
 -- Función + Trigger: actualizar factura cuando alguien aprueba.

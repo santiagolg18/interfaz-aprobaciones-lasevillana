@@ -6,6 +6,8 @@ import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/auth/current-user";
 import { triggerPdfGeneration } from "@/lib/pdf-service";
+import { logInvoiceActivity } from "@/lib/audit/log-activity";
+import type { TablesUpdate } from "@/lib/database.types";
 
 type Decision = "approve" | "reject";
 
@@ -77,6 +79,17 @@ async function recordDecision(formData: FormData, decision: Decision) {
     await triggerPdfGeneration(result.invoice_id);
   }
 
+  await logInvoiceActivity({
+    invoiceId,
+    action: decision === "approve" ? "approved" : "rejected",
+    details: {
+      notes,
+      resulting_status: result.new_status,
+      current_approvals: result.current_approvals,
+      required_approvals: result.required_approvals,
+    },
+  });
+
   revalidatePath(`/facturas/${invoiceId}`);
   revalidatePath("/mis-aprobaciones");
   revalidatePath("/facturas");
@@ -133,7 +146,7 @@ export async function configureInvoiceApprovers(formData: FormData) {
 
   const { data: invoice, error: loadError } = await supabase
     .from("invoices")
-    .select("id, supplier_id, supplier_nit, supplier_name, status")
+    .select("id, supplier_id, supplier_nit, supplier_name, status, approval_mode")
     .eq("id", invoiceId)
     .maybeSingle();
 
@@ -143,11 +156,34 @@ export async function configureInvoiceApprovers(formData: FormData) {
     );
   }
 
-  if (invoice.status !== "pending") {
+  // Se pueden configurar aprobadores mientras la factura está en revisión de
+  // compras (in_review / review_rejected) o liberada y aún en curso (pending).
+  // Una vez aprobada o rechazada, ya no.
+  const configurableStatuses = ["in_review", "review_rejected", "pending"];
+  if (!configurableStatuses.includes(invoice.status ?? "")) {
     redirect(
       `/facturas/${invoiceId}?error=${encodeURIComponent("Esta factura ya no se puede configurar")}`,
     );
   }
+
+  // ¿La factura ya fue liberada a los aprobadores? Determina si las nuevas
+  // aprobaciones nacen activas ('pending') o en espera ('blocked').
+  const isReleased = invoice.status === "pending";
+  // El modo se decide en este diálogo (Editar aprobadores). Si no viene en el
+  // form, se conserva el de la factura.
+  const mode: "parallel" | "sequential" =
+    String(formData.get("approval_mode") ?? "") === "sequential"
+      ? "sequential"
+      : String(formData.get("approval_mode") ?? "") === "parallel"
+        ? "parallel"
+        : invoice.approval_mode === "sequential"
+          ? "sequential"
+          : "parallel";
+  const isSequential = mode === "sequential";
+  // Orden en la cadena según el orden en que llegan los aprobadores.
+  const orderByApprover = new Map(
+    approverIds.map((id, index) => [id, index + 1] as const),
+  );
 
   // Resolver supplier_id: muchas facturas llegan con supplier_id NULL pero con
   // supplier_nit + supplier_name snapshotados. Buscamos por NIT y enlazamos;
@@ -201,7 +237,11 @@ export async function configureInvoiceApprovers(formData: FormData) {
   const toAdd = approverIds.filter((id) => !existingByApproverId.has(id));
   const toRemove = existingRows.filter((row) => !desiredSet.has(row.approver_id));
 
-  const blockedRemoval = toRemove.find((row) => row.status !== "pending");
+  // Solo se impide quitar a quien YA decidió (approved/rejected). Las pendientes
+  // ('pending') y en espera ('blocked', factura aún en revisión) sí se pueden quitar.
+  const blockedRemoval = toRemove.find(
+    (row) => row.status === "approved" || row.status === "rejected",
+  );
   if (blockedRemoval) {
     redirect(
       `/facturas/${invoiceId}?error=${encodeURIComponent("No puedes quitar un aprobador que ya emitió su decisión")}`,
@@ -224,6 +264,10 @@ export async function configureInvoiceApprovers(formData: FormData) {
   }
 
   if (toAdd.length > 0) {
+    // Una aprobación nueva nace 'pending' solo si la factura ya está liberada en
+    // modo paralelo. En revisión, o en cascada, nace 'blocked' (entra en su turno).
+    const newStatus: "pending" | "blocked" =
+      isReleased && !isSequential ? "pending" : "blocked";
     const { error: approvalsInsertError } = await supabase
       .from("approvals")
       .insert(
@@ -231,7 +275,8 @@ export async function configureInvoiceApprovers(formData: FormData) {
           invoice_id: invoiceId,
           approver_id,
           token: crypto.randomUUID(),
-          status: "pending" as const,
+          status: newStatus,
+          approval_order: orderByApprover.get(approver_id) ?? 1,
         })),
       );
     if (approvalsInsertError) {
@@ -239,6 +284,16 @@ export async function configureInvoiceApprovers(formData: FormData) {
         `/facturas/${invoiceId}?error=${encodeURIComponent(approvalsInsertError.message)}`,
       );
     }
+  }
+
+  // Sincronizar el orden de la cadena para todos los aprobadores deseados
+  // (existentes y nuevos), respetando el orden recibido.
+  for (const [approver_id, order] of orderByApprover) {
+    await supabase
+      .from("approvals")
+      .update({ approval_order: order })
+      .eq("invoice_id", invoiceId)
+      .eq("approver_id", approver_id);
   }
 
   const [{ count: approvedCount }, { count: rejectedCount }] = await Promise.all([
@@ -254,24 +309,35 @@ export async function configureInvoiceApprovers(formData: FormData) {
       .eq("status", "rejected"),
   ]);
 
-  let invoiceStatus: "pending" | "approved" | "rejected" = "pending";
-  let completedAt: string | null = null;
-  if ((rejectedCount ?? 0) > 0) {
-    invoiceStatus = "rejected";
-    completedAt = new Date().toISOString();
-  } else if ((approvedCount ?? 0) >= requiredApprovals) {
-    invoiceStatus = "approved";
-    completedAt = new Date().toISOString();
+  // En cascada todos deben aprobar; en paralelo se respeta el umbral configurado.
+  const effectiveRequired = isSequential ? approverIds.length : requiredApprovals;
+
+  // Solo recalculamos la transición a approved/rejected si la factura YA fue
+  // liberada. Si sigue en revisión (in_review / review_rejected), conservamos su
+  // estado: configurar aprobadores no debe liberarla.
+  const invoiceUpdate: TablesUpdate<"invoices"> = {
+    required_approvals: effectiveRequired,
+    current_approvals: approvedCount ?? 0,
+    approval_mode: mode,
+  };
+  let becameApproved = false;
+  if (isReleased) {
+    if ((rejectedCount ?? 0) > 0) {
+      invoiceUpdate.status = "rejected";
+      invoiceUpdate.completed_at = new Date().toISOString();
+    } else if ((approvedCount ?? 0) >= effectiveRequired) {
+      invoiceUpdate.status = "approved";
+      invoiceUpdate.completed_at = new Date().toISOString();
+      becameApproved = true;
+    } else {
+      invoiceUpdate.status = "pending";
+      invoiceUpdate.completed_at = null;
+    }
   }
 
   const { error: invoiceUpdateError } = await supabase
     .from("invoices")
-    .update({
-      required_approvals: requiredApprovals,
-      current_approvals: approvedCount ?? 0,
-      status: invoiceStatus,
-      completed_at: completedAt,
-    })
+    .update(invoiceUpdate)
     .eq("id", invoiceId);
 
   if (invoiceUpdateError) {
@@ -283,14 +349,14 @@ export async function configureInvoiceApprovers(formData: FormData) {
   // C3: si configurar aprobadores deja la factura ya en 'approved' (porque las
   // approvals existentes ya cumplían el umbral), dispara el pdf-service. Sin esto,
   // la factura quedaba 'approved' pero sin final_pdf_path.
-  if (invoiceStatus === "approved") {
+  if (becameApproved) {
     await triggerPdfGeneration(invoiceId);
   }
 
   if (effectiveSupplierId) {
     await supabase
       .from("suppliers")
-      .update({ required_approvals: requiredApprovals })
+      .update({ required_approvals: effectiveRequired, approval_mode: mode })
       .eq("id", effectiveSupplierId);
 
     await supabase
@@ -299,12 +365,25 @@ export async function configureInvoiceApprovers(formData: FormData) {
       .eq("supplier_id", effectiveSupplierId);
 
     await supabase.from("approval_rules").insert(
-      approverIds.map((approver_id) => ({
+      approverIds.map((approver_id, index) => ({
         supplier_id: effectiveSupplierId!,
         approver_id,
+        approval_order: index + 1,
       })),
     );
   }
+
+  await logInvoiceActivity({
+    invoiceId,
+    action: "approvers_configured",
+    details: {
+      approvers: approverIds.length,
+      required_approvals: effectiveRequired,
+      approval_mode: mode,
+      added: toAdd.length,
+      removed: toRemove.length,
+    },
+  });
 
   revalidatePath(`/facturas/${invoiceId}`);
   revalidatePath("/facturas");

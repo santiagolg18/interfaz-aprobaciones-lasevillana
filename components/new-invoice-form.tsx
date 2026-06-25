@@ -30,6 +30,7 @@ type Defaults = {
   description?: string;
   required_approvals?: string;
   approver_ids?: string[];
+  business_front?: string;
 };
 
 export function NewInvoiceForm({
@@ -39,6 +40,7 @@ export function NewInvoiceForm({
   defaults,
   errorMessage,
   existingInvoiceId,
+  canChooseFront = false,
 }: {
   action: (formData: FormData) => void | Promise<void>;
   approvers: Approver[];
@@ -46,6 +48,8 @@ export function NewInvoiceForm({
   defaults?: Defaults;
   errorMessage?: string;
   existingInvoiceId?: string;
+  // Solo el admin elige el frente; Compras lo hereda de su perfil.
+  canChooseFront?: boolean;
 }) {
   const [nit, setNit] = useState<string>(defaults?.supplier_nit ?? "");
   const [supplierName, setSupplierName] = useState<string>(
@@ -255,6 +259,24 @@ export function NewInvoiceForm({
               defaultValue={defaults?.due_date ?? ""}
             />
           </div>
+          {canChooseFront ? (
+            <div className="space-y-1.5">
+              <Label htmlFor="business_front">Frente de negocio</Label>
+              <select
+                id="business_front"
+                name="business_front"
+                required
+                defaultValue={defaults?.business_front ?? ""}
+                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              >
+                <option value="" disabled>
+                  Selecciona…
+                </option>
+                <option value="parrilla">Parrilla</option>
+                <option value="agropecuaria">Agropecuaria</option>
+              </select>
+            </div>
+          ) : null}
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="description">Descripción (opcional)</Label>

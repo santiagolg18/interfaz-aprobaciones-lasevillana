@@ -3,6 +3,8 @@ import { cn } from "@/lib/utils";
 
 type Counts = {
   all: number;
+  in_review: number;
+  review_rejected: number;
   pending: number;
   approved: number;
   rejected: number;
@@ -13,6 +15,8 @@ type Counts = {
 
 type QuickKey =
   | "all"
+  | "in_review"
+  | "review_rejected"
   | "pending"
   | "no_po"
   | "aging"
@@ -30,6 +34,8 @@ function detectActive({ status, quick, po }: ActiveProps): QuickKey {
   if (quick === "aging") return "aging";
   if (quick === "recent") return "recent";
   if (po === "without" && !status) return "no_po";
+  if (status === "in_review") return "in_review";
+  if (status === "review_rejected") return "review_rejected";
   if (status === "pending") return "pending";
   if (status === "approved") return "approved";
   if (status === "rejected") return "rejected";
@@ -42,12 +48,18 @@ function hrefFor(
 ): string {
   const params = new URLSearchParams();
   // Mantener filtros agnósticos al quick filter (proveedor, fechas, búsqueda, etc.)
-  const preserve = ["supplier_id", "from", "to", "q", "min", "max", "sort"];
+  const preserve = ["supplier_id", "from", "to", "q", "min", "max", "sort", "front"];
   for (const k of preserve) {
     const v = base[k];
     if (v) params.set(k, v);
   }
   switch (key) {
+    case "in_review":
+      params.set("status", "in_review");
+      break;
+    case "review_rejected":
+      params.set("status", "review_rejected");
+      break;
     case "pending":
       params.set("status", "pending");
       break;
@@ -87,6 +99,8 @@ export function InvoiceQuickFilters({
 
   const tabs: { key: QuickKey; label: string; count: number; tone?: "warning" | "danger" | "muted" }[] = [
     { key: "all", label: "Todas", count: counts.all },
+    { key: "in_review", label: "En revisión", count: counts.in_review, tone: "muted" },
+    { key: "review_rejected", label: "Con problema", count: counts.review_rejected, tone: "danger" },
     { key: "pending", label: "Pendientes", count: counts.pending, tone: "warning" },
     { key: "no_po", label: "Sin OC", count: counts.noPo, tone: "muted" },
     { key: "aging", label: "Atrasadas", count: counts.aging, tone: "danger" },

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { KeyRound, Pencil, Plus, Trash2, UserCog } from "lucide-react";
+import { KeyRound, ListChecks, Pencil, Plus, Trash2, UserCog } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -27,7 +27,7 @@ export default async function ConfiguracionPage() {
 
   const { data: users, error } = await supabase
     .from("approvers")
-    .select("id, name, email, role, is_active, auth_user_id")
+    .select("id, name, email, role, is_active, auth_user_id, business_front")
     .order("role", { ascending: true })
     .order("name", { ascending: true });
 
@@ -39,12 +39,20 @@ export default async function ConfiguracionPage() {
         title="Configuración"
         description="Gestiona los usuarios con acceso a la aplicación."
         actions={
-          <Button asChild>
-            <Link href="/configuracion/new">
-              <Plus className="size-4" />
-              Nuevo usuario
-            </Link>
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button asChild variant="outline">
+              <Link href="/configuracion/checklist">
+                <ListChecks className="size-4" />
+                Checklist de revisión
+              </Link>
+            </Button>
+            <Button asChild>
+              <Link href="/configuracion/new">
+                <Plus className="size-4" />
+                Nuevo usuario
+              </Link>
+            </Button>
+          </div>
         }
       />
 
@@ -94,7 +102,7 @@ export default async function ConfiguracionPage() {
                       </div>
                     </div>
                   </div>
-                  <RoleBadge role={u.role} />
+                  <RoleBadge role={u.role} businessFront={u.business_front} />
                 </div>
                 <div className="mt-3 flex items-center justify-between gap-3 pt-3 border-t">
                   <div className="flex items-center gap-2">
@@ -194,7 +202,7 @@ export default async function ConfiguracionPage() {
                       {u.email}
                     </TableCell>
                     <TableCell>
-                      <RoleBadge role={u.role} />
+                      <RoleBadge role={u.role} businessFront={u.business_front} />
                     </TableCell>
                     <TableCell>
                       {u.is_active ? (
@@ -272,19 +280,32 @@ export default async function ConfiguracionPage() {
   );
 }
 
-function RoleBadge({ role }: { role: string }) {
+function RoleBadge({
+  role,
+  businessFront,
+}: {
+  role: string;
+  businessFront?: string | null;
+}) {
   if (role === "admin")
     return (
       <Badge className="bg-violet-100 text-violet-700 hover:bg-violet-100 border-0">
         Admin
       </Badge>
     );
-  if (role === "purchasing")
+  if (role === "purchasing") {
+    const frontLabel =
+      businessFront === "parrilla"
+        ? "Parrilla"
+        : businessFront === "agropecuaria"
+          ? "Agropecuaria"
+          : null;
     return (
       <Badge className="bg-sky-100 text-sky-700 hover:bg-sky-100 border-0">
-        Compras
+        Compras{frontLabel ? ` · ${frontLabel}` : ""}
       </Badge>
     );
+  }
   return (
     <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100 border-0">
       Aprobador

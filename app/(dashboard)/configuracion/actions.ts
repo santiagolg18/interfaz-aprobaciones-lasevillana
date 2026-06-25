@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireAdmin } from "@/lib/auth/current-user";
+import { parseFront } from "@/lib/invoices/business-front";
 
 type Role = "admin" | "approver" | "purchasing";
 
@@ -14,6 +15,11 @@ function parseRole(v: FormDataEntryValue | null): Role {
   return "approver";
 }
 
+// El frente de negocio solo aplica al rol Compras; en cualquier otro rol queda null.
+function frontForRole(role: Role, v: FormDataEntryValue | null): string | null {
+  return role === "purchasing" ? parseFront(v) : null;
+}
+
 export async function createUserWithAuth(formData: FormData) {
   await requireAdmin();
 
@@ -21,6 +27,7 @@ export async function createUserWithAuth(formData: FormData) {
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   const password = String(formData.get("password") ?? "");
   const role = parseRole(formData.get("role"));
+  const business_front = frontForRole(role, formData.get("business_front"));
   const is_active = formData.get("is_active") === "on";
 
   if (!name || !email || !password) {
@@ -51,6 +58,7 @@ export async function createUserWithAuth(formData: FormData) {
     name,
     email,
     role,
+    business_front,
     is_active,
     auth_user_id: created.user.id,
   });
@@ -76,6 +84,7 @@ export async function updateUserConfig(formData: FormData) {
   const id = String(formData.get("id") ?? "");
   const name = String(formData.get("name") ?? "").trim();
   const role = parseRole(formData.get("role"));
+  const business_front = frontForRole(role, formData.get("business_front"));
   const is_active = formData.get("is_active") === "on";
 
   if (!id || !name) {
@@ -85,7 +94,7 @@ export async function updateUserConfig(formData: FormData) {
   const supabase = await createClient();
   const { error } = await supabase
     .from("approvers")
-    .update({ name, role, is_active })
+    .update({ name, role, business_front, is_active })
     .eq("id", id);
 
   if (error) {

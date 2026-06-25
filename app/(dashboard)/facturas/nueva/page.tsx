@@ -20,6 +20,7 @@ type SearchParams = Promise<{
   description?: string;
   required_approvals?: string;
   approver_ids?: string | string[];
+  business_front?: string;
 }>;
 
 export default async function NuevaFacturaPage({
@@ -92,6 +93,7 @@ export default async function NuevaFacturaPage({
         suppliers={suppliers}
         errorMessage={sp.error}
         existingInvoiceId={sp.existing_id}
+        canChooseFront={me.role === "admin"}
         defaults={{
           supplier_nit: sp.supplier_nit,
           supplier_name: sp.supplier_name,
@@ -103,6 +105,7 @@ export default async function NuevaFacturaPage({
           description: sp.description,
           required_approvals: sp.required_approvals,
           approver_ids: approverIdsFromQuery,
+          business_front: sp.business_front,
         }}
       />
     </div>

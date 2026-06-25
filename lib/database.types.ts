@@ -52,6 +52,7 @@ export type Database = {
       }
       approvals: {
         Row: {
+          approval_order: number
           approved_at: string | null
           approver_id: string
           created_at: string | null
@@ -63,6 +64,7 @@ export type Database = {
           token: string
         }
         Insert: {
+          approval_order?: number
           approved_at?: string | null
           approver_id: string
           created_at?: string | null
@@ -74,6 +76,7 @@ export type Database = {
           token: string
         }
         Update: {
+          approval_order?: number
           approved_at?: string | null
           approver_id?: string
           created_at?: string | null
@@ -104,6 +107,7 @@ export type Database = {
       approvers: {
         Row: {
           auth_user_id: string | null
+          business_front: string | null
           created_at: string | null
           email: string
           id: string
@@ -114,6 +118,7 @@ export type Database = {
         }
         Insert: {
           auth_user_id?: string | null
+          business_front?: string | null
           created_at?: string | null
           email: string
           id?: string
@@ -124,6 +129,7 @@ export type Database = {
         }
         Update: {
           auth_user_id?: string | null
+          business_front?: string | null
           created_at?: string | null
           email?: string
           id?: string
@@ -134,8 +140,69 @@ export type Database = {
         }
         Relationships: []
       }
+      invoice_activity_log: {
+        Row: {
+          action: string
+          actor_id: string | null
+          actor_name: string | null
+          actor_role: string | null
+          created_at: string
+          details: Json | null
+          id: string
+          invoice_id: string | null
+          invoice_number: string | null
+          supplier_name: string | null
+          total_amount: number | null
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          actor_name?: string | null
+          actor_role?: string | null
+          created_at?: string
+          details?: Json | null
+          id?: string
+          invoice_id?: string | null
+          invoice_number?: string | null
+          supplier_name?: string | null
+          total_amount?: number | null
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          actor_name?: string | null
+          actor_role?: string | null
+          created_at?: string
+          details?: Json | null
+          id?: string
+          invoice_id?: string | null
+          invoice_number?: string | null
+          supplier_name?: string | null
+          total_amount?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_activity_log_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "approvers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_activity_log_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       invoices: {
         Row: {
+          approval_mode: string
+          archived_at: string | null
+          archived_by: string | null
+          business_front: string | null
           completed_at: string | null
           created_at: string | null
           currency: string | null
@@ -144,6 +211,7 @@ export type Database = {
           due_date: string | null
           email_message_id: string | null
           final_pdf_path: string | null
+          has_purchase_order: boolean | null
           id: string
           invoice_number: string
           issue_date: string | null
@@ -155,6 +223,12 @@ export type Database = {
           po_uploaded_at: string | null
           received_at: string | null
           required_approvals: number
+          review_checklist: Json | null
+          review_notes: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          sent_to_accounting_at: string | null
+          sent_to_accounting_by: string | null
           status: string | null
           supplier_id: string | null
           supplier_name: string
@@ -163,6 +237,10 @@ export type Database = {
           xml_raw: Json | null
         }
         Insert: {
+          approval_mode?: string
+          archived_at?: string | null
+          archived_by?: string | null
+          business_front?: string | null
           completed_at?: string | null
           created_at?: string | null
           currency?: string | null
@@ -171,6 +249,7 @@ export type Database = {
           due_date?: string | null
           email_message_id?: string | null
           final_pdf_path?: string | null
+          has_purchase_order?: boolean | null
           id?: string
           invoice_number: string
           issue_date?: string | null
@@ -182,6 +261,12 @@ export type Database = {
           po_uploaded_at?: string | null
           received_at?: string | null
           required_approvals?: number
+          review_checklist?: Json | null
+          review_notes?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          sent_to_accounting_at?: string | null
+          sent_to_accounting_by?: string | null
           status?: string | null
           supplier_id?: string | null
           supplier_name: string
@@ -190,6 +275,10 @@ export type Database = {
           xml_raw?: Json | null
         }
         Update: {
+          approval_mode?: string
+          archived_at?: string | null
+          archived_by?: string | null
+          business_front?: string | null
           completed_at?: string | null
           created_at?: string | null
           currency?: string | null
@@ -198,6 +287,7 @@ export type Database = {
           due_date?: string | null
           email_message_id?: string | null
           final_pdf_path?: string | null
+          has_purchase_order?: boolean | null
           id?: string
           invoice_number?: string
           issue_date?: string | null
@@ -209,6 +299,12 @@ export type Database = {
           po_uploaded_at?: string | null
           received_at?: string | null
           required_approvals?: number
+          review_checklist?: Json | null
+          review_notes?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          sent_to_accounting_at?: string | null
+          sent_to_accounting_by?: string | null
           status?: string | null
           supplier_id?: string | null
           supplier_name?: string
@@ -218,6 +314,27 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "invoices_archived_by_fkey"
+            columns: ["archived_by"]
+            isOneToOne: false
+            referencedRelation: "approvers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "approvers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_sent_to_accounting_by_fkey"
+            columns: ["sent_to_accounting_by"]
+            isOneToOne: false
+            referencedRelation: "approvers"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "invoices_supplier_id_fkey"
             columns: ["supplier_id"]
             isOneToOne: false
@@ -226,8 +343,39 @@ export type Database = {
           },
         ]
       }
+      review_checklist_items: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string
+          is_active: boolean
+          is_required: boolean
+          label: string
+          sort_order: number
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          is_required?: boolean
+          label: string
+          sort_order?: number
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          is_required?: boolean
+          label?: string
+          sort_order?: number
+        }
+        Relationships: []
+      }
       suppliers: {
         Row: {
+          approval_mode: string
           celular: string | null
           contacto_facturacion: string | null
           created_at: string | null
@@ -242,6 +390,7 @@ export type Database = {
           tipo: string | null
         }
         Insert: {
+          approval_mode?: string
           celular?: string | null
           contacto_facturacion?: string | null
           created_at?: string | null
@@ -256,6 +405,7 @@ export type Database = {
           tipo?: string | null
         }
         Update: {
+          approval_mode?: string
           celular?: string | null
           contacto_facturacion?: string | null
           created_at?: string | null
@@ -295,6 +445,7 @@ export type Database = {
         Args: { from_ts?: string; to_ts?: string }
         Returns: number
       }
+      get_vault_secret: { Args: { secret_name: string }; Returns: string }
       record_invoice_decision: {
         Args: {
           p_approval_id: string
