@@ -10,7 +10,7 @@ export default async function FacturaDetallePage({ params }: { params: Params })
   return (
     <>
       <FlashToast />
-      <InvoiceDetail invoiceId={id} variant="page" />
+      <InvoiceDetail invoiceId={id} />
     </>
   );
 }

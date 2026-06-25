@@ -4,7 +4,6 @@ import {
   CheckCircle2,
   Clock,
   Copy,
-  ExternalLink,
   FileCheck2,
   UserX,
   XCircle,
@@ -41,16 +40,11 @@ import { getSignedStorageUrl } from "@/lib/supabase/storage";
 import { findDuplicateInvoices } from "@/lib/invoices/find-duplicates";
 import { configureInvoiceApprovers } from "./actions";
 
-// Cuerpo del detalle de factura, compartido entre la página completa
-// (`/facturas/[id]`) y el drawer lateral (ruta interceptora). El `variant`
-// ajusta el encabezado: la página usa PageHeader con "Volver"; el drawer
-// asume que el Sheet ya aporta el cierre y un enlace a la página completa.
+// Cuerpo del detalle de factura para la página completa (`/facturas/[id]`).
 export async function InvoiceDetail({
   invoiceId,
-  variant = "page",
 }: {
   invoiceId: string;
-  variant?: "page" | "drawer";
 }) {
   const id = invoiceId;
   const me = await getCurrentUser();
@@ -200,46 +194,21 @@ export async function InvoiceDetail({
     <div
       className={`space-y-5 ${showMobileStickyBar ? "pb-28 lg:pb-0" : ""}`}
     >
-      {variant === "page" ? (
-        <PageHeader
-          backHref={me.role === "approver" ? "/mis-aprobaciones" : "/facturas"}
-          backLabel={
-            me.role === "approver"
-              ? "Volver a mis aprobaciones"
-              : "Volver a facturas"
-          }
-          title={<>Factura {invoice.invoice_number}</>}
-          description={
-            <>
-              {invoice.supplier_name} · NIT {invoice.supplier_nit}
-            </>
-          }
-          actions={headerActions}
-        />
-      ) : (
-        <div className="flex flex-wrap items-start justify-between gap-3 pr-8">
-          <div className="min-w-0">
-            <h1 className="text-lg font-semibold tracking-tight text-neutral-900">
-              Factura {invoice.invoice_number}
-            </h1>
-            <p className="mt-0.5 text-sm text-muted-foreground">
-              {invoice.supplier_name} · NIT {invoice.supplier_nit}
-            </p>
-            <Button
-              asChild
-              variant="link"
-              size="sm"
-              className="-ml-2 mt-1 h-auto p-0 text-xs"
-            >
-              <Link href={`/facturas/${invoice.id}`}>
-                <ExternalLink className="size-3.5" />
-                Abrir en página completa
-              </Link>
-            </Button>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">{headerActions}</div>
-        </div>
-      )}
+      <PageHeader
+        backHref={me.role === "approver" ? "/mis-aprobaciones" : "/facturas"}
+        backLabel={
+          me.role === "approver"
+            ? "Volver a mis aprobaciones"
+            : "Volver a facturas"
+        }
+        title={<>Factura {invoice.invoice_number}</>}
+        description={
+          <>
+            {invoice.supplier_name} · NIT {invoice.supplier_nit}
+          </>
+        }
+        actions={headerActions}
+      />
 
       {duplicates.length > 0 ? (
         <div className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
