@@ -26,6 +26,7 @@ import { cn } from "@/lib/utils";
 import { formatCOP, formatDateTime } from "@/lib/format";
 import {
   markSentToAccounting,
+  retryPdfGeneration,
   unmarkSentToAccounting,
 } from "@/app/(dashboard)/facturas/lifecycle-actions";
 
@@ -38,10 +39,45 @@ export type PrintQueueItem = {
   received_at: string | null;
   pdfUrl: string | null;
   pdfReady: boolean;
+  // pdf_generation_status de la factura: distingue "en proceso" de "falló".
+  pdfStatus: string | null;
 };
 
 function PdfButton({ item }: { item: PrintQueueItem }) {
+  const router = useRouter();
+  const [retrying, startRetry] = useTransition();
+
   if (!item.pdfReady || !item.pdfUrl) {
+    // Un intento fallido se veía idéntico a uno en curso y la factura quedaba
+    // atascada sin salida; con estado 'error' ofrecemos reintentar.
+    if (item.pdfStatus === "error") {
+      return (
+        <button
+          type="button"
+          disabled={retrying}
+          onClick={() =>
+            startRetry(async () => {
+              const res = await retryPdfGeneration(item.id);
+              if (!res.ok) {
+                toast.error(res.error ?? "No se pudo reintentar");
+                return;
+              }
+              toast.success("Generación del PDF reiniciada");
+              router.refresh();
+            })
+          }
+          className="inline-flex items-center gap-1.5 rounded-md border border-rose-200 bg-rose-50 px-2.5 py-1.5 text-xs font-medium text-rose-700 transition-colors hover:bg-rose-100 disabled:opacity-60"
+          title="La generación del PDF falló. Haz clic para reintentar."
+        >
+          {retrying ? (
+            <Loader2 className="size-3.5 animate-spin" />
+          ) : (
+            <FileWarning className="size-3.5" />
+          )}
+          PDF falló · Reintentar
+        </button>
+      );
+    }
     return (
       <span
         className="inline-flex items-center gap-1.5 rounded-md border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-xs font-medium text-amber-700"
@@ -102,7 +138,19 @@ export function PrintQueue({
       toast.error("Las seleccionadas no tienen PDF disponible");
       return;
     }
-    urls.forEach((u) => window.open(u, "_blank", "noopener,noreferrer"));
+    // El bloqueador de popups suele permitir solo la primera pestaña; si no lo
+    // detectamos, el usuario cree que abrió todas.
+    let blocked = 0;
+    for (const u of urls) {
+      const win = window.open(u, "_blank", "noopener,noreferrer");
+      if (!win) blocked += 1;
+    }
+    if (blocked > 0) {
+      toast.warning(
+        `El navegador bloqueó ${blocked} de ${urls.length} pestañas. Permite las ventanas emergentes para este sitio y vuelve a intentar.`,
+        { duration: 8000 },
+      );
+    }
   }
 
   function sendSelected() {
@@ -113,9 +161,14 @@ export function PrintQueue({
         toast.error(res.error ?? "No se pudo completar la acción");
         return;
       }
-      toast.success(
-        `${res.updated ?? ids.length} factura(s) enviada(s) a contabilidad`,
-      );
+      const updated = res.updated ?? 0;
+      if (updated < ids.length) {
+        toast.warning(
+          `Se marcaron ${updated} de ${ids.length} facturas; las demás ya no estaban listas.`,
+        );
+      } else {
+        toast.success(`${updated} factura(s) enviada(s) a contabilidad`);
+      }
       setSelected(new Set());
       router.refresh();
     });

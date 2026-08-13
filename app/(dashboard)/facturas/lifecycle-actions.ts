@@ -1,10 +1,12 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getCurrentUser } from "@/lib/auth/current-user";
 import { logInvoiceActivity } from "@/lib/audit/log-activity";
+import { triggerPdfGeneration } from "@/lib/pdf-service";
 
 const BUCKET = "invoices";
 
@@ -133,6 +135,45 @@ export async function markSentToAccounting(
 
   revalidateLists();
   return { ok: true, updated: data?.length ?? 0 };
+}
+
+// Reintentar la generación del PDF final de una factura aprobada cuyo intento
+// anterior falló (o quedó colgado). Dispara el pdf-service en segundo plano y
+// responde de inmediato; el estado queda en pdf_generation_status.
+export async function retryPdfGeneration(
+  invoiceId: string,
+): Promise<LifecycleResult> {
+  if (!invoiceId) return { ok: false, error: "Factura inválida" };
+  const auth = await requireStaffProfile();
+  if (!auth.ok) return { ok: false, error: auth.error };
+
+  const supabase = await createClient();
+  const { data: invoice } = await supabase
+    .from("invoices")
+    .select("id, status, final_pdf_path")
+    .eq("id", invoiceId)
+    .maybeSingle();
+
+  if (!invoice) return { ok: false, error: "Factura no encontrada" };
+  if (invoice.status !== "approved") {
+    return { ok: false, error: "Solo aplica a facturas aprobadas" };
+  }
+  if (invoice.final_pdf_path) {
+    return { ok: false, error: "Esta factura ya tiene su PDF generado" };
+  }
+
+  // Marcar de inmediato como "en proceso" para que la UI lo refleje.
+  await supabase
+    .from("invoices")
+    .update({ pdf_generation_status: "processing", pdf_generation_error: null })
+    .eq("id", invoiceId);
+
+  after(async () => {
+    await triggerPdfGeneration(invoiceId);
+  });
+
+  revalidateLists();
+  return { ok: true };
 }
 
 // Revertir una factura completada de vuelta a "lista para imprimir".
@@ -351,7 +392,7 @@ export async function bulkArchiveInvoices(
 export async function bulkDeleteInvoices(
   invoiceIds: string[],
   reason?: string,
-): Promise<LifecycleResult & { updated?: number }> {
+): Promise<LifecycleResult & { updated?: number; failed?: number }> {
   const ids = (invoiceIds ?? []).filter(Boolean);
   if (ids.length === 0) return { ok: false, error: "No seleccionaste facturas" };
   const auth = await requireStaffProfile();
@@ -368,5 +409,5 @@ export async function bulkDeleteInvoices(
   if (updated === 0) {
     return { ok: false, error: lastError ?? "No se pudo eliminar" };
   }
-  return { ok: true, updated };
+  return { ok: true, updated, failed: ids.length - updated };
 }

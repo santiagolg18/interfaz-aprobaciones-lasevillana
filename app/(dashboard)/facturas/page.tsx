@@ -8,6 +8,7 @@ import {
 } from "@/components/invoice-table-selectable";
 import { MobileSortSelect } from "@/components/mobile-sort-select";
 import { EmptyState } from "@/components/empty-state";
+import { FlashToast } from "@/components/flash-toast";
 import { PageHeader } from "@/components/page-header";
 import { Pagination } from "@/components/pagination";
 import { Button } from "@/components/ui/button";
@@ -21,6 +22,7 @@ import {
   resolveInvoiceScope,
 } from "@/lib/invoices/business-front";
 import { formatCOP } from "@/lib/format";
+import { sanitizeSearchTerm } from "@/lib/search";
 import {
   TABS,
   resolveTab,
@@ -57,6 +59,8 @@ const SORT_OPTIONS: { value: string; label: string }[] = [
   { value: "received_asc", label: "Más antiguas primero" },
   { value: "amount_desc", label: "Monto mayor primero" },
   { value: "amount_asc", label: "Monto menor primero" },
+  { value: "invoice_number_asc", label: "Número (A→Z)" },
+  { value: "invoice_number_desc", label: "Número (Z→A)" },
 ];
 
 function sortToOrder(sort: string): { column: string; ascending: boolean } {
@@ -67,6 +71,10 @@ function sortToOrder(sort: string): { column: string; ascending: boolean } {
       return { column: "total_amount", ascending: false };
     case "amount_asc":
       return { column: "total_amount", ascending: true };
+    case "invoice_number_asc":
+      return { column: "invoice_number", ascending: true };
+    case "invoice_number_desc":
+      return { column: "invoice_number", ascending: false };
     case "received_desc":
     default:
       return { column: "received_at", ascending: false };
@@ -92,12 +100,15 @@ export default async function FacturasPage({
   const isPrintTab = activeTab === "listas" || activeTab === "completadas";
 
   const currentSort =
-    sort && /^(received|amount)_(asc|desc)$/.test(sort) ? sort : DEFAULT_SORT;
+    sort && /^(received|amount|invoice_number)_(asc|desc)$/.test(sort)
+      ? sort
+      : DEFAULT_SORT;
   const currentPage = Math.max(1, parseInt(page ?? "1", 10) || 1);
 
   const order = sortToOrder(currentSort);
   const offset = (currentPage - 1) * PAGE_SIZE;
-  const qPattern = q ? `%${q.trim()}%` : null;
+  const qSanitized = q ? sanitizeSearchTerm(q) : "";
+  const qPattern = qSanitized ? `%${qSanitized}%` : null;
   const minNum = min && !Number.isNaN(Number(min)) ? Number(min) : null;
   const maxNum = max && !Number.isNaN(Number(max)) ? Number(max) : null;
 
@@ -255,6 +266,7 @@ export default async function FacturasPage({
           received_at: inv.received_at,
           pdfUrl,
           pdfReady: Boolean(inv.final_pdf_path) && Boolean(pdfUrl),
+          pdfStatus: inv.pdf_generation_status,
         };
       }),
     );
@@ -318,6 +330,7 @@ export default async function FacturasPage({
 
   return (
     <div className="space-y-5">
+      <FlashToast />
       <PageHeader
         title={scope ? `Facturas · ${frontLabel(scope)}` : "Facturas"}
         actions={

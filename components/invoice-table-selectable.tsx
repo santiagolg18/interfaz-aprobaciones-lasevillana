@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { toast } from "sonner";
 import { Archive, Copy, Paperclip, Trash2 } from "lucide-react";
 import {
   Table,
@@ -64,6 +65,21 @@ export function InvoiceTableSelectable({
 }) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
+  // URL actual de la lista (pestaña, filtros, página) codificada como `from`,
+  // para que el detalle pueda volver exactamente a esta vista.
+  const backTarget = useMemo(() => {
+    const params = new URLSearchParams();
+    for (const [k, v] of Object.entries(searchParams)) {
+      if (v) params.set(k, v);
+    }
+    const qs = params.toString();
+    return qs ? `/facturas?${qs}` : "/facturas";
+  }, [searchParams]);
+  const detailHref = (id: string) =>
+    backTarget === "/facturas"
+      ? `/facturas/${id}`
+      : `/facturas/${id}?from=${encodeURIComponent(backTarget)}`;
+
   const ids = useMemo(() => invoices.map((i) => i.id), [invoices]);
   const allSelected = ids.length > 0 && ids.every((id) => selected.has(id));
   const someSelected = selected.size > 0;
@@ -106,10 +122,20 @@ export function InvoiceTableSelectable({
                 title={`Archivar ${selected.size} factura${selected.size === 1 ? "" : "s"}`}
                 description="Las facturas por revisar seleccionadas se moverán a Archivadas. Podrás restaurarlas cuando quieras."
                 confirmLabel="Archivar"
-                successMessage="Facturas archivadas"
                 onConfirm={async () => {
+                  const total = selectedIds.length;
                   const res = await bulkArchiveInvoices(selectedIds);
-                  if (res.ok) clearSelection();
+                  if (res.ok) {
+                    clearSelection();
+                    const updated = res.updated ?? 0;
+                    if (updated < total) {
+                      toast.warning(
+                        `Se archivaron ${updated} de ${total} facturas; las demás ya no eran archivables.`,
+                      );
+                    } else {
+                      toast.success(`${updated} factura(s) archivada(s)`);
+                    }
+                  }
                   return res;
                 }}
                 renderTrigger={(open) => (
@@ -130,13 +156,23 @@ export function InvoiceTableSelectable({
               description="Se eliminarán permanentemente las facturas seleccionadas y sus archivos. Esta acción no se puede deshacer; quedará constancia en el historial."
               confirmLabel="Eliminar definitivamente"
               variant="destructive"
-              successMessage="Facturas eliminadas"
               requireReason
               reasonLabel="Motivo de la eliminación"
               reasonPlaceholder="Ej.: facturas duplicadas, cargadas por error…"
               onConfirm={async (reason) => {
+                const total = selectedIds.length;
                 const res = await bulkDeleteInvoices(selectedIds, reason);
-                if (res.ok) clearSelection();
+                if (res.ok) {
+                  clearSelection();
+                  const updated = res.updated ?? 0;
+                  if ((res.failed ?? 0) > 0 || updated < total) {
+                    toast.warning(
+                      `Se eliminaron ${updated} de ${total} facturas; el resto no se pudo eliminar.`,
+                    );
+                  } else {
+                    toast.success(`${updated} factura(s) eliminada(s)`);
+                  }
+                }
                 return res;
               }}
               renderTrigger={(open) => (
@@ -166,7 +202,7 @@ export function InvoiceTableSelectable({
             )}
           >
             <Link
-              href={`/facturas/${inv.id}`}
+              href={detailHref(inv.id)}
               className="absolute inset-0 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
               aria-label={`Ver factura ${inv.invoice_number}`}
             />
@@ -313,7 +349,7 @@ export function InvoiceTableSelectable({
                 ) : null}
                 <TableCell className="font-medium text-neutral-900 whitespace-nowrap">
                   <Link
-                    href={`/facturas/${inv.id}`}
+                    href={detailHref(inv.id)}
                     className="inline-flex items-center gap-1.5 after:absolute after:inset-0 after:content-[''] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2 rounded-sm"
                   >
                     {inv.invoice_number}

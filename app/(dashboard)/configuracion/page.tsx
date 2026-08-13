@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { KeyRound, ListChecks, Pencil, Plus, Trash2, UserCog } from "lucide-react";
+import { KeyRound, ListChecks, Pencil, Plus, UserCog } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -17,7 +17,7 @@ import { FlashToast } from "@/components/flash-toast";
 import { StatusBadge } from "@/components/status-badge";
 import { createClient } from "@/lib/supabase/server";
 import { requireAdmin } from "@/lib/auth/current-user";
-import { deleteUser } from "./actions";
+import { DeleteUserButton } from "@/components/delete-user-button";
 
 export const dynamic = "force-dynamic";
 
@@ -159,18 +159,7 @@ export default async function ConfiguracionPage() {
                         </Link>
                       </Button>
                     ) : null}
-                    <form action={deleteUser}>
-                      <input type="hidden" name="id" value={u.id} />
-                      <Button
-                        type="submit"
-                        variant="ghost"
-                        size="icon"
-                        title="Eliminar"
-                        className="text-rose-600 hover:bg-rose-50 hover:text-rose-700"
-                      >
-                        <Trash2 className="size-4" />
-                      </Button>
-                    </form>
+                    <DeleteUserButton id={u.id} name={u.name} />
                   </div>
                 </div>
               </li>
@@ -265,18 +254,7 @@ export default async function ConfiguracionPage() {
                             </Link>
                           </Button>
                         ) : null}
-                        <form action={deleteUser}>
-                          <input type="hidden" name="id" value={u.id} />
-                          <Button
-                            type="submit"
-                            variant="ghost"
-                            size="icon"
-                            title="Eliminar"
-                            className="text-rose-600 hover:bg-rose-50 hover:text-rose-700"
-                          >
-                            <Trash2 className="size-4" />
-                          </Button>
-                        </form>
+                        <DeleteUserButton id={u.id} name={u.name} />
                       </div>
                     </TableCell>
                   </TableRow>

@@ -11,6 +11,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { SubmitButton } from "@/components/submit-button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
@@ -104,10 +105,10 @@ export default async function ChecklistConfigPage() {
               />
               Obligatorio (bloquea la liberación)
             </label>
-            <Button type="submit">
+            <SubmitButton pendingLabel="Agregando…">
               <Plus className="size-4" />
               Agregar
-            </Button>
+            </SubmitButton>
           </div>
         </form>
       </div>
@@ -162,28 +163,28 @@ export default async function ChecklistConfigPage() {
                   <form action={moveChecklistItem}>
                     <input type="hidden" name="id" value={it.id} />
                     <input type="hidden" name="dir" value="up" />
-                    <Button
-                      type="submit"
+                    <SubmitButton
                       variant="ghost"
                       size="icon"
                       title="Subir"
                       disabled={index === 0}
+                      pendingLabel=""
                     >
                       <ArrowUp className="size-4" />
-                    </Button>
+                    </SubmitButton>
                   </form>
                   <form action={moveChecklistItem}>
                     <input type="hidden" name="id" value={it.id} />
                     <input type="hidden" name="dir" value="down" />
-                    <Button
-                      type="submit"
+                    <SubmitButton
                       variant="ghost"
                       size="icon"
                       title="Bajar"
                       disabled={index === rows.length - 1}
+                      pendingLabel=""
                     >
                       <ArrowDown className="size-4" />
-                    </Button>
+                    </SubmitButton>
                   </form>
                   <form action={setChecklistItemActive}>
                     <input type="hidden" name="id" value={it.id} />
@@ -192,30 +193,30 @@ export default async function ChecklistConfigPage() {
                       name="to"
                       value={it.is_active ? "false" : "true"}
                     />
-                    <Button
-                      type="submit"
+                    <SubmitButton
                       variant="ghost"
                       size="icon"
                       title={it.is_active ? "Desactivar" : "Activar"}
+                      pendingLabel=""
                     >
                       {it.is_active ? (
                         <EyeOff className="size-4" />
                       ) : (
                         <Eye className="size-4" />
                       )}
-                    </Button>
+                    </SubmitButton>
                   </form>
                   <form action={deleteChecklistItem}>
                     <input type="hidden" name="id" value={it.id} />
-                    <Button
-                      type="submit"
+                    <SubmitButton
                       variant="ghost"
                       size="icon"
                       title="Eliminar"
                       className="text-rose-600 hover:bg-rose-50 hover:text-rose-700"
+                      pendingLabel=""
                     >
                       <Trash2 className="size-4" />
-                    </Button>
+                    </SubmitButton>
                   </form>
                 </div>
               </div>
@@ -260,9 +261,9 @@ export default async function ChecklistConfigPage() {
                       />
                       Obligatorio
                     </label>
-                    <Button type="submit" size="sm">
+                    <SubmitButton size="sm" pendingLabel="Guardando…">
                       Guardar
-                    </Button>
+                    </SubmitButton>
                   </div>
                 </form>
               </details>

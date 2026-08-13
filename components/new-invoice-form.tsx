@@ -63,7 +63,9 @@ export function NewInvoiceForm({
     return Number.isFinite(parsed) && parsed > 0 ? parsed : 1;
   });
   const [fileName, setFileName] = useState<string>("");
+  const [fileError, setFileError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const fileSectionRef = useRef<HTMLElement>(null);
 
   const suppliersByNit = useMemo(
     () => new Map(suppliers.map((s) => [s.nit, s])),
@@ -101,6 +103,23 @@ export function NewInvoiceForm({
 
   function onFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     setFileName(e.target.files?.[0]?.name ?? "");
+    setFileError(null);
+  }
+
+  // El input de archivo vive oculto (sr-only): si tuviera `required` nativo,
+  // el navegador abortaría el submit sin poder mostrar el mensaje ni enfocar
+  // el control, y el botón "Crear factura" parecería muerto. Validamos aquí
+  // con un error visible junto al selector.
+  function onSubmit(e: React.FormEvent<HTMLFormElement>) {
+    const file = fileInputRef.current?.files?.[0];
+    if (!file) {
+      e.preventDefault();
+      setFileError("Adjunta el PDF o imagen de la factura para poder crearla.");
+      fileSectionRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+    }
   }
 
   const selectedCount = selected.size;
@@ -121,7 +140,7 @@ export function NewInvoiceForm({
   }, [nit, matchedSupplier, suppliers]);
 
   return (
-    <form action={action} className="space-y-6">
+    <form action={action} onSubmit={onSubmit} className="space-y-6">
       {errorMessage ? (
         <div
           role="alert"
@@ -223,7 +242,7 @@ export function NewInvoiceForm({
               name="total_amount"
               type="number"
               step="0.01"
-              min="0"
+              min="0.01"
               required
               defaultValue={defaults?.total_amount ?? ""}
               placeholder="1500000"
@@ -290,7 +309,12 @@ export function NewInvoiceForm({
         </div>
       </section>
 
-      <section className="rounded-lg border bg-white p-4 shadow-[0_1px_2px_0_rgb(0_0_0/0.03)] space-y-3">
+      <section
+        ref={fileSectionRef}
+        className={`rounded-lg border bg-white p-4 shadow-[0_1px_2px_0_rgb(0_0_0/0.03)] space-y-3 ${
+          fileError ? "border-rose-300" : ""
+        }`}
+      >
         <h2 className="text-sm font-semibold text-neutral-900">Archivo</h2>
         <p className="text-xs text-muted-foreground">
           Adjunta el PDF o imagen original de la factura (PDF, JPG o PNG, máx.
@@ -302,7 +326,6 @@ export function NewInvoiceForm({
           name="file"
           type="file"
           accept="application/pdf,image/jpeg,image/png"
-          required
           onChange={onFileChange}
           className="sr-only"
         />
@@ -319,6 +342,12 @@ export function NewInvoiceForm({
             {fileName || "Ningún archivo seleccionado"}
           </span>
         </div>
+        {fileError ? (
+          <p role="alert" className="flex items-center gap-1.5 text-sm text-rose-700">
+            <AlertCircle className="size-4 shrink-0" />
+            {fileError}
+          </p>
+        ) : null}
       </section>
 
       <section className="rounded-lg border bg-white p-4 shadow-[0_1px_2px_0_rgb(0_0_0/0.03)] space-y-4">
@@ -378,7 +407,7 @@ export function NewInvoiceForm({
           <div className="rounded-md border border-dashed p-4 text-center text-sm text-muted-foreground">
             No hay aprobadores activos.{" "}
             <Link
-              href="/aprobadores/new"
+              href="/configuracion/new"
               className="font-medium text-foreground underline underline-offset-2"
             >
               Crea uno

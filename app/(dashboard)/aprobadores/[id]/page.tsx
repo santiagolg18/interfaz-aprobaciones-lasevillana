@@ -4,6 +4,7 @@ import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ApproverForm } from "@/components/approver-form";
 import { createClient } from "@/lib/supabase/server";
+import { requireAdmin } from "@/lib/auth/current-user";
 import { updateApprover } from "../actions";
 
 export const dynamic = "force-dynamic";
@@ -18,6 +19,7 @@ export default async function EditarAprobadorPage({
   params: Params;
   searchParams: SearchParams;
 }) {
+  await requireAdmin();
   const { id } = await params;
   const { error } = await searchParams;
 

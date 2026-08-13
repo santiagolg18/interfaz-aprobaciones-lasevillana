@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
+import { after } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentUser, canApproveInvoices } from "@/lib/auth/current-user";
 import { triggerPdfGeneration } from "@/lib/pdf-service";
@@ -72,7 +73,14 @@ async function recordDecision(formData: FormData, decision: Decision) {
   }
 
   if (result.new_status === "approved") {
-    await triggerPdfGeneration(result.invoice_id);
+    // La generación del PDF puede tardar hasta ~30 s (timeout + reintento del
+    // pdf-service). after() la ejecuta tras responder, para que el aprobador no
+    // quede mirando el botón en "Aprobando…" todo ese tiempo. El estado queda
+    // registrado en pdf_generation_status y la cola de impresión lo refleja.
+    const approvedInvoiceId = result.invoice_id;
+    after(async () => {
+      await triggerPdfGeneration(approvedInvoiceId);
+    });
   }
 
   await logInvoiceActivity({
@@ -93,7 +101,13 @@ async function recordDecision(formData: FormData, decision: Decision) {
 
   const successMsg =
     decision === "approve" ? "Factura aprobada" : "Factura rechazada";
-  redirect(`/mis-aprobaciones?success=${encodeURIComponent(successMsg)}`);
+  // Cada rol vuelve a una pantalla que existe en su menú: los aprobadores a su
+  // cola; admin/Compras a la lista de facturas (o a la vista de la que venían).
+  const rawFrom = String(formData.get("from") ?? "");
+  const from = rawFrom.startsWith("/") && !rawFrom.startsWith("//") ? rawFrom : null;
+  const fallback = me.role === "approver" ? "/mis-aprobaciones" : "/facturas";
+  const sep = (from ?? fallback).includes("?") ? "&" : "?";
+  redirect(`${from ?? fallback}${sep}success=${encodeURIComponent(successMsg)}`);
 }
 
 export async function approveInvoice(formData: FormData) {
@@ -366,9 +380,12 @@ export async function configureInvoiceApprovers(formData: FormData) {
 
   // C3: si configurar aprobadores deja la factura ya en 'approved' (porque las
   // approvals existentes ya cumplían el umbral), dispara el pdf-service. Sin esto,
-  // la factura quedaba 'approved' pero sin final_pdf_path.
+  // la factura quedaba 'approved' pero sin final_pdf_path. after() evita bloquear
+  // la respuesta hasta ~30 s.
   if (becameApproved) {
-    await triggerPdfGeneration(invoiceId);
+    after(async () => {
+      await triggerPdfGeneration(invoiceId);
+    });
   }
 
   if (effectiveSupplierId) {

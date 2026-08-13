@@ -2,7 +2,7 @@
 
 import { useRef, useState, useTransition } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Search, X } from "lucide-react";
+import { Loader2, Search, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -26,7 +26,7 @@ export function SearchInput({
   const externalValue = sp.get(paramName) ?? "";
   const [value, setValue] = useState(externalValue);
   const [lastExternal, setLastExternal] = useState(externalValue);
-  const [, startTransition] = useTransition();
+  const [isPending, startTransition] = useTransition();
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Sync from URL when it changes externally (e.g., chips removed, "Clear filters").
@@ -62,10 +62,17 @@ export function SearchInput({
 
   return (
     <div className={cn("relative w-full", className)}>
-      <Search
-        aria-hidden
-        className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
-      />
+      {isPending ? (
+        <Loader2
+          aria-hidden
+          className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 animate-spin text-muted-foreground"
+        />
+      ) : (
+        <Search
+          aria-hidden
+          className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+        />
+      )}
       <input
         type="search"
         inputMode="search"

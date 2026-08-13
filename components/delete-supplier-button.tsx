@@ -11,6 +11,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { SubmitButton } from "@/components/submit-button";
 
 export function DeleteSupplierButton({
   id,
@@ -54,13 +55,13 @@ export function DeleteSupplierButton({
             </Button>
             <form action={action}>
               <input type="hidden" name="id" value={id} />
-              <Button
-                type="submit"
+              <SubmitButton
                 className="bg-rose-600 hover:bg-rose-700 text-white"
+                pendingLabel="Eliminando…"
               >
                 <Trash2 className="size-4" />
                 Eliminar
-              </Button>
+              </SubmitButton>
             </form>
           </DialogFooter>
         </DialogContent>

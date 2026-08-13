@@ -36,12 +36,17 @@ export function ApproverForm({
           <Label htmlFor="email">Email</Label>
           <Input
             id="email"
-            name="email"
             type="email"
-            required
             defaultValue={approver?.email ?? ""}
             placeholder="maria@empresa.com"
+            disabled={isEdit}
           />
+          {isEdit ? (
+            <p className="text-xs text-muted-foreground">
+              El email no se puede cambiar: es el vínculo con la cuenta de
+              acceso.
+            </p>
+          ) : null}
         </div>
       </div>
 

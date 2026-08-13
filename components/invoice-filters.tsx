@@ -38,6 +38,15 @@ export function InvoiceFilters({ suppliers }: { suppliers: Supplier[] }) {
   const minTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const maxTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Fechas controladas con el mismo patrón, para que "Limpiar filtros" o
+  // quitar un chip también vacíe visualmente los inputs.
+  const externalFrom = sp.get("from") ?? "";
+  const externalTo = sp.get("to") ?? "";
+  const [fromVal, setFromVal] = useState(externalFrom);
+  const [toVal, setToVal] = useState(externalTo);
+  const [lastFrom, setLastFrom] = useState(externalFrom);
+  const [lastTo, setLastTo] = useState(externalTo);
+
   // Sync from URL when it changes externally (clear filters, chip remove).
   if (externalMin !== lastMin) {
     setLastMin(externalMin);
@@ -46,6 +55,14 @@ export function InvoiceFilters({ suppliers }: { suppliers: Supplier[] }) {
   if (externalMax !== lastMax) {
     setLastMax(externalMax);
     setMaxVal(externalMax);
+  }
+  if (externalFrom !== lastFrom) {
+    setLastFrom(externalFrom);
+    setFromVal(externalFrom);
+  }
+  if (externalTo !== lastTo) {
+    setLastTo(externalTo);
+    setToVal(externalTo);
   }
 
   function setParam(
@@ -134,8 +151,11 @@ export function InvoiceFilters({ suppliers }: { suppliers: Supplier[] }) {
           <Input
             type="date"
             className="h-11 sm:h-8"
-            defaultValue={sp.get("from") ?? ""}
-            onChange={(e) => setParam("from", e.target.value || null)}
+            value={fromVal}
+            onChange={(e) => {
+              setFromVal(e.target.value);
+              setParam("from", e.target.value || null);
+            }}
           />
         </div>
 
@@ -144,8 +164,11 @@ export function InvoiceFilters({ suppliers }: { suppliers: Supplier[] }) {
           <Input
             type="date"
             className="h-11 sm:h-8"
-            defaultValue={sp.get("to") ?? ""}
-            onChange={(e) => setParam("to", e.target.value || null)}
+            value={toVal}
+            onChange={(e) => {
+              setToVal(e.target.value);
+              setParam("to", e.target.value || null);
+            }}
           />
         </div>
       </div>

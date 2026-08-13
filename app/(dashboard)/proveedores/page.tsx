@@ -17,6 +17,8 @@ import { DeleteSupplierButton } from "@/components/delete-supplier-button";
 import { EmptyState } from "@/components/empty-state";
 import { PageHeader } from "@/components/page-header";
 import { createClient } from "@/lib/supabase/server";
+import { requireStaff } from "@/lib/auth/current-user";
+import { sanitizeSearchTerm } from "@/lib/search";
 import { deleteSupplier } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -36,8 +38,9 @@ export default async function ProveedoresPage({
 }: {
   searchParams: SearchParams;
 }) {
+  await requireStaff();
   const sp = await searchParams;
-  const q = (sp.q ?? "").trim();
+  const q = sanitizeSearchTerm(sp.q ?? "");
   const tipo = sp.tipo;
   const approversFilter = sp.approvers;
   const approverId = sp.approver;
@@ -45,11 +48,9 @@ export default async function ProveedoresPage({
 
   const supabase = await createClient();
 
-  // Si se filtra por un aprobador específico o por "con/sin aprobadores",
-  // necesitamos los supplier_ids con reglas para aplicar el filtro al query
-  // (antes de paginar) y para calcular el stat global "sin aprobadores".
+  // Si se filtra por un aprobador específico, sus reglas son pocas: se cargan
+  // sus supplier_ids y se restringe la consulta a ellos.
   let restrictToIds: string[] | null = null;
-  let excludeIds: string[] | null = null;
   let approverFilter: { id: string; name: string } | null = null;
 
   if (approverId) {
@@ -70,32 +71,26 @@ export default async function ProveedoresPage({
     approverFilter = approverRes.data ?? null;
   }
 
-  // Cargamos siempre los supplier_ids con reglas: se usan para el filtro
-  // "con/sin aprobadores" y para el stat global "Sin aprobadores".
-  const { data: allRulesRows } = await supabase
-    .from("approval_rules")
-    .select("supplier_id");
-  const supplierIdsWithRules = Array.from(
-    new Set((allRulesRows ?? []).map((r) => r.supplier_id)),
-  );
-
-  if (approversFilter === "with") {
-    const intersect =
-      restrictToIds !== null
-        ? restrictToIds.filter((id) => supplierIdsWithRules.includes(id))
-        : supplierIdsWithRules;
-    restrictToIds = intersect;
-  } else if (approversFilter === "without") {
-    excludeIds = supplierIdsWithRules;
-  }
+  // El filtro "con/sin aprobadores" se resuelve en la base de datos con el
+  // embed de approval_rules (!inner para "con", is null para "sin"), en vez de
+  // precargar TODAS las reglas y armar un `.not in (miles de ids)` que rompe
+  // el límite de la URL a medida que crecen los datos.
+  const embed =
+    approversFilter === "with"
+      ? "approval_rules!inner(supplier_id)"
+      : "approval_rules(supplier_id)";
 
   let query = supabase
     .from("suppliers")
     .select(
-      "id, nit, nombre, tipo, email, telefono, celular, required_approvals, approval_rules(count)",
+      `id, nit, nombre, tipo, email, telefono, celular, required_approvals, ${embed}`,
       { count: "exact" },
     )
     .order("nombre");
+
+  if (approversFilter === "without") {
+    query = query.is("approval_rules", null);
+  }
 
   if (q) {
     const pattern = `%${q}%`;
@@ -111,9 +106,6 @@ export default async function ProveedoresPage({
       query = query.in("id", restrictToIds);
     }
   }
-  if (excludeIds !== null && excludeIds.length > 0) {
-    query = query.not("id", "in", `(${excludeIds.join(",")})`);
-  }
 
   const from = (page - 1) * PAGE_SIZE;
   const to = from + PAGE_SIZE - 1;
@@ -122,21 +114,41 @@ export default async function ProveedoresPage({
   const { data: suppliers, error, count } = await query;
   const filtered = suppliers ?? [];
 
-  // Stats globales (sin filtros) — pequeñas, en paralelo
-  const [{ count: totalAll }, { count: totalPermanente }] = await Promise.all([
+  // Stats globales (sin filtros) — conteos en la base, en paralelo.
+  const [
+    { count: totalAll },
+    { count: totalPermanente },
+    { count: sinAprobadoresCount },
+  ] = await Promise.all([
     supabase.from("suppliers").select("id", { count: "exact", head: true }),
     supabase
       .from("suppliers")
       .select("id", { count: "exact", head: true })
       .eq("tipo", "P"),
+    supabase
+      .from("suppliers")
+      .select("id, approval_rules(supplier_id)", { count: "exact", head: true })
+      .is("approval_rules", null),
   ]);
-  const totalSinAprobadores = Math.max(
-    0,
-    (totalAll ?? 0) - supplierIdsWithRules.length,
-  );
+  const totalSinAprobadores = sinAprobadoresCount ?? 0;
 
   const totalFiltered = count ?? 0;
   const hasFilters = Boolean(q || tipo || approversFilter || approverId);
+
+  // URL actual de la lista (filtros + página), pasada como `from` a la edición
+  // para volver exactamente a esta vista al guardar o cancelar.
+  const listParams = new URLSearchParams();
+  if (q) listParams.set("q", q);
+  if (tipo) listParams.set("tipo", tipo);
+  if (approversFilter) listParams.set("approvers", approversFilter);
+  if (approverId) listParams.set("approver", approverId);
+  if (page > 1) listParams.set("page", String(page));
+  const listQs = listParams.toString();
+  const listUrl = listQs ? `/proveedores?${listQs}` : "/proveedores";
+  const editHref = (id: string) =>
+    listUrl === "/proveedores"
+      ? `/proveedores/${id}`
+      : `/proveedores/${id}?from=${encodeURIComponent(listUrl)}`;
 
   function urlWithoutApprover() {
     const params = new URLSearchParams();
@@ -242,7 +254,7 @@ export default async function ProveedoresPage({
           <ul className="md:hidden space-y-2">
             {filtered.map((s) => {
               const rulesCount = Array.isArray(s.approval_rules)
-                ? (s.approval_rules[0]?.count ?? 0)
+                ? s.approval_rules.length
                 : 0;
               const phone = s.celular || s.telefono;
               return (
@@ -252,7 +264,7 @@ export default async function ProveedoresPage({
                 >
                   <div className="flex items-start justify-between gap-3">
                     <Link
-                      href={`/proveedores/${s.id}`}
+                      href={editHref(s.id)}
                       className="min-w-0 flex-1"
                     >
                       <div className="font-semibold text-neutral-900 leading-tight truncate">
@@ -308,7 +320,7 @@ export default async function ProveedoresPage({
                         size="icon"
                         aria-label={`Editar ${s.nombre}`}
                       >
-                        <Link href={`/proveedores/${s.id}`}>
+                        <Link href={editHref(s.id)}>
                           <Pencil className="size-4" />
                         </Link>
                       </Button>
@@ -340,7 +352,7 @@ export default async function ProveedoresPage({
               <TableBody>
                 {filtered.map((s) => {
                   const rulesCount = Array.isArray(s.approval_rules)
-                    ? (s.approval_rules[0]?.count ?? 0)
+                    ? s.approval_rules.length
                     : 0;
                   const phone = s.celular || s.telefono;
                   return (
@@ -350,7 +362,7 @@ export default async function ProveedoresPage({
                       </TableCell>
                       <TableCell>
                         <Link
-                          href={`/proveedores/${s.id}`}
+                          href={editHref(s.id)}
                           className="block hover:underline"
                         >
                           <div className="font-medium leading-tight">
@@ -402,7 +414,7 @@ export default async function ProveedoresPage({
                             size="icon"
                             aria-label={`Editar ${s.nombre}`}
                           >
-                            <Link href={`/proveedores/${s.id}`}>
+                            <Link href={editHref(s.id)}>
                               <Pencil className="size-4" />
                             </Link>
                           </Button>

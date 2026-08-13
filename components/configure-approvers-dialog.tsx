@@ -274,7 +274,7 @@ export function ConfigureApproversDialog({
                 <div className="rounded-md border border-dashed p-4 text-center text-sm text-muted-foreground">
                   No hay aprobadores activos.{" "}
                   <Link
-                    href="/aprobadores/new"
+                    href="/configuracion/new"
                     className="font-medium text-foreground underline underline-offset-2"
                   >
                     Crea uno

@@ -18,7 +18,8 @@ import { Avatar } from "@/components/avatar";
 import { EmptyState } from "@/components/empty-state";
 import { PageHeader } from "@/components/page-header";
 import { createClient } from "@/lib/supabase/server";
-import { getCurrentUser } from "@/lib/auth/current-user";
+import { requireStaff } from "@/lib/auth/current-user";
+import { sanitizeSearchTerm } from "@/lib/search";
 import { toggleApproverActive } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -34,13 +35,13 @@ export default async function AprobadoresPage({
 }: {
   searchParams: SearchParams;
 }) {
+  const me = await requireStaff();
   const sp = await searchParams;
-  const q = (sp.q ?? "").trim();
+  const q = sanitizeSearchTerm(sp.q ?? "");
   const estado = sp.estado;
   const asignacion = sp.asignacion;
 
-  const me = await getCurrentUser();
-  const isAdmin = me?.role === "admin";
+  const isAdmin = me.role === "admin";
   const supabase = await createClient();
 
   let query = supabase
@@ -57,6 +58,20 @@ export default async function AprobadoresPage({
   if (estado === "inactivos") query = query.eq("is_active", false);
 
   const { data: rawApprovers, error } = await query;
+
+  // Aprobaciones aún sin decidir por aprobador: se muestran como advertencia
+  // al desactivar (esas facturas quedarían frenadas esperando su turno).
+  const { data: openApprovalRows } = await supabase
+    .from("approvals")
+    .select("approver_id")
+    .in("status", ["pending", "blocked"]);
+  const openApprovalsByApprover = new Map<string, number>();
+  for (const row of openApprovalRows ?? []) {
+    openApprovalsByApprover.set(
+      row.approver_id,
+      (openApprovalsByApprover.get(row.approver_id) ?? 0) + 1,
+    );
+  }
 
   const approvers = (rawApprovers ?? []).map((a) => {
     const rulesCount = Array.isArray(a.approval_rules)
@@ -199,8 +214,9 @@ export default async function AprobadoresPage({
                 className="rounded-lg border bg-white p-4 shadow-[0_1px_2px_0_rgb(0_0_0/0.03)]"
               >
                 <div className="flex items-start justify-between gap-3">
-                  <Link
-                    href={`/aprobadores/${a.id}`}
+                  {/* La edición es solo de admin: para Compras el nombre no es link. */}
+                  <MaybeLink
+                    href={isAdmin ? `/aprobadores/${a.id}` : null}
                     className="flex items-center gap-3 min-w-0 flex-1"
                   >
                     <Avatar
@@ -215,7 +231,7 @@ export default async function AprobadoresPage({
                         {a.email}
                       </div>
                     </div>
-                  </Link>
+                  </MaybeLink>
                   {a.is_active ? (
                     <StatusBadge status="approved" />
                   ) : (
@@ -245,6 +261,7 @@ export default async function AprobadoresPage({
                         name={a.name}
                         isActive={!!a.is_active}
                         assignedCount={a.rulesCount}
+                        pendingCount={openApprovalsByApprover.get(a.id) ?? 0}
                         action={toggleApproverActive}
                       />
                       <Button asChild variant="ghost" size="icon">
@@ -283,12 +300,18 @@ export default async function AprobadoresPage({
                           name={a.name}
                           tone={a.is_active ? "primary" : "muted"}
                         />
-                        <Link
-                          href={`/aprobadores/${a.id}`}
-                          className="font-medium leading-tight text-neutral-900 hover:underline"
-                        >
-                          {a.name}
-                        </Link>
+                        {isAdmin ? (
+                          <Link
+                            href={`/aprobadores/${a.id}`}
+                            className="font-medium leading-tight text-neutral-900 hover:underline"
+                          >
+                            {a.name}
+                          </Link>
+                        ) : (
+                          <span className="font-medium leading-tight text-neutral-900">
+                            {a.name}
+                          </span>
+                        )}
                       </div>
                     </TableCell>
                     <TableCell>
@@ -339,6 +362,7 @@ export default async function AprobadoresPage({
                             name={a.name}
                             isActive={!!a.is_active}
                             assignedCount={a.rulesCount}
+                            pendingCount={openApprovalsByApprover.get(a.id) ?? 0}
                             action={toggleApproverActive}
                           />
                           <Button asChild variant="ghost" size="icon">
@@ -362,6 +386,23 @@ export default async function AprobadoresPage({
         </>
       )}
     </div>
+  );
+}
+
+function MaybeLink({
+  href,
+  className,
+  children,
+}: {
+  href: string | null;
+  className?: string;
+  children: React.ReactNode;
+}) {
+  if (!href) return <div className={className}>{children}</div>;
+  return (
+    <Link href={href} className={className}>
+      {children}
+    </Link>
   );
 }
 

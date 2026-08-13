@@ -9,7 +9,7 @@ import {
 } from "@/app/(dashboard)/facturas/tabs";
 
 // Filtros que se conservan al cambiar de pestaña (no dependen del estado).
-const PRESERVE = ["supplier_id", "from", "to", "q", "min", "max", "sort", "front"] as const;
+const PRESERVE = ["supplier_id", "from", "to", "q", "min", "max", "po", "sort", "front"] as const;
 
 function hrefFor(key: TabKey, base: Record<string, string | undefined>): string {
   const params = new URLSearchParams();

@@ -217,11 +217,14 @@ export async function resetUserPassword(formData: FormData) {
   );
 }
 
-export async function deleteUser(formData: FormData) {
+// Consumida por ConfirmDialog (DeleteUserButton): devuelve el resultado en vez
+// de redirigir, para que el diálogo muestre el error sin cerrar ni navegar.
+export async function deleteUserById(
+  id: string,
+): Promise<{ ok: boolean; error?: string }> {
   await requireAdmin();
 
-  const id = String(formData.get("id") ?? "");
-  if (!id) return;
+  if (!id) return { ok: false, error: "Usuario inválido" };
 
   const supabase = await createClient();
 
@@ -239,15 +242,15 @@ export async function deleteUser(formData: FormData) {
     ]);
 
   if ((approvalsCount ?? 0) > 0 || (rulesCount ?? 0) > 0) {
-    redirect(
-      `/configuracion?error=${encodeURIComponent("No se puede eliminar: el usuario tiene aprobaciones o reglas asociadas. Desactívalo en su lugar.")}`,
-    );
+    return {
+      ok: false,
+      error:
+        "No se puede eliminar: el usuario tiene aprobaciones o reglas asociadas. Desactívalo en su lugar.",
+    };
   }
 
   const { error } = await supabase.from("approvers").delete().eq("id", id);
-  if (error) {
-    redirect(`/configuracion?error=${encodeURIComponent(error.message)}`);
-  }
+  if (error) return { ok: false, error: error.message };
 
   if (profile?.auth_user_id) {
     const admin = createAdminClient();
@@ -256,5 +259,5 @@ export async function deleteUser(formData: FormData) {
 
   revalidatePath("/configuracion");
   revalidatePath("/aprobadores");
-  redirect(`/configuracion?success=${encodeURIComponent("Usuario eliminado")}`);
+  return { ok: true };
 }

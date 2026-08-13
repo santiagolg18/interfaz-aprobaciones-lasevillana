@@ -23,9 +23,12 @@ type Mode = "idle" | "approve" | "reject";
 export function ApprovalActions({
   invoiceId,
   approvalId,
+  from,
 }: {
   invoiceId: string;
   approvalId: string;
+  // Vista de la que vino el usuario, para volver a ella tras decidir.
+  from?: string | null;
 }) {
   const [mode, setMode] = useState<Mode>("idle");
 
@@ -111,6 +114,7 @@ export function ApprovalActions({
           >
             <input type="hidden" name="invoice_id" value={invoiceId} />
             <input type="hidden" name="approval_id" value={approvalId} />
+            {from ? <input type="hidden" name="from" value={from} /> : null}
 
             <div className="space-y-1.5">
               <Label htmlFor="notes">

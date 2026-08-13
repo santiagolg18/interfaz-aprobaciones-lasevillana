@@ -2,6 +2,7 @@ import Link from "next/link";
 import { History, Search } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { EmptyState } from "@/components/empty-state";
+import { FlashToast } from "@/components/flash-toast";
 import { Pagination } from "@/components/pagination";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -84,6 +85,7 @@ export default async function ActividadPage({
 
   return (
     <div className="space-y-5">
+      <FlashToast />
       <PageHeader
         title="Actividad"
         description="Registro de todas las acciones realizadas sobre las facturas."

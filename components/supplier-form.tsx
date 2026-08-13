@@ -1,5 +1,8 @@
+"use client";
+
+import { useState } from "react";
 import Link from "next/link";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, ListOrdered, Users } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -12,6 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { cn } from "@/lib/utils";
 
 type Approver = { id: string; name: string; email: string };
 
@@ -20,7 +24,9 @@ export function SupplierForm({
   supplier,
   approvers,
   assignedApproverIds,
+  assignedOrder,
   error,
+  from,
 }: {
   action: (formData: FormData) => void | Promise<void>;
   supplier?: {
@@ -35,16 +41,45 @@ export function SupplierForm({
     contacto_facturacion: string | null;
     mail_contacto_facturacion: string | null;
     required_approvals: number;
+    approval_mode?: string | null;
   };
   approvers: Approver[];
   assignedApproverIds: string[];
+  // Orden en la cadena (approval_order) de los aprobadores ya asignados.
+  assignedOrder?: Record<string, number>;
   error?: string;
+  // URL de la lista de origen: se devuelve al usuario ahí al guardar/cancelar.
+  from?: string | null;
 }) {
-  const assigned = new Set(assignedApproverIds);
+  const [selected, setSelected] = useState<Set<string>>(
+    () => new Set(assignedApproverIds),
+  );
+  const [required, setRequired] = useState<number>(
+    Math.max(1, supplier?.required_approvals ?? 1),
+  );
+  const [mode, setMode] = useState<"parallel" | "sequential">(
+    supplier?.approval_mode === "sequential" ? "sequential" : "parallel",
+  );
+
+  const selectedCount = selected.size;
+  // El umbral no puede exceder los aprobadores marcados (si no, las facturas
+  // de este proveedor jamás alcanzarían las aprobaciones requeridas).
+  const cappedRequired =
+    selectedCount > 0 ? Math.min(required, selectedCount) : required;
+
+  function toggleApprover(id: string, checked: boolean) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (checked) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  }
 
   return (
     <form action={action} className="space-y-6">
       {supplier ? <input type="hidden" name="id" value={supplier.id} /> : null}
+      {from ? <input type="hidden" name="from" value={from} /> : null}
 
       <div className="space-y-4">
         <h2 className="text-xs font-semibold text-neutral-500 uppercase tracking-wider">
@@ -154,47 +189,121 @@ export function SupplierForm({
         <h2 className="text-xs font-semibold text-neutral-500 uppercase tracking-wider">
           Aprobaciones
         </h2>
-        <div className="space-y-1.5 sm:max-w-[200px]">
+
+        <div className="space-y-2">
+          <Label>Modo de aprobación</Label>
+          <input type="hidden" name="approval_mode" value={mode} />
+          <div className="grid gap-2 sm:grid-cols-2">
+            <button
+              type="button"
+              onClick={() => setMode("parallel")}
+              aria-pressed={mode === "parallel"}
+              className={cn(
+                "flex items-start gap-2.5 rounded-md border p-3 text-left transition-colors",
+                mode === "parallel"
+                  ? "border-primary bg-primary/5 ring-1 ring-primary/30"
+                  : "hover:bg-neutral-50",
+              )}
+            >
+              <Users className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+              <span className="leading-tight">
+                <span className="block text-sm font-medium">Independiente</span>
+                <span className="block text-xs text-muted-foreground">
+                  Todos reciben la factura a la vez; aprueban en cualquier orden.
+                </span>
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setMode("sequential")}
+              aria-pressed={mode === "sequential"}
+              className={cn(
+                "flex items-start gap-2.5 rounded-md border p-3 text-left transition-colors",
+                mode === "sequential"
+                  ? "border-primary bg-primary/5 ring-1 ring-primary/30"
+                  : "hover:bg-neutral-50",
+              )}
+            >
+              <ListOrdered className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+              <span className="leading-tight">
+                <span className="block text-sm font-medium">En cascada</span>
+                <span className="block text-xs text-muted-foreground">
+                  Uno tras otro, siguiendo el orden de la cadena.
+                </span>
+              </span>
+            </button>
+          </div>
+        </div>
+
+        <div className="space-y-1.5 sm:max-w-[220px]">
           <Label htmlFor="required_approvals">Aprobaciones requeridas</Label>
           <Input
             id="required_approvals"
             name="required_approvals"
             type="number"
             min={1}
-            max={20}
+            max={Math.max(1, selectedCount || 1)}
             required
-            defaultValue={supplier?.required_approvals ?? 1}
+            value={cappedRequired}
+            onChange={(e) => {
+              const v = parseInt(e.target.value, 10);
+              setRequired(Number.isFinite(v) && v > 0 ? v : 1);
+            }}
           />
+          {selectedCount > 0 ? (
+            <p className="text-xs text-muted-foreground">
+              Máximo {selectedCount}: no puede exceder los aprobadores
+              seleccionados.
+            </p>
+          ) : null}
         </div>
 
         <div className="space-y-2">
           <Label>Aprobadores asignados</Label>
           <p className="text-xs text-muted-foreground">
-            Selecciona los aprobadores activos que deben firmar las facturas de este proveedor.
+            Selecciona quiénes deben firmar las facturas de este proveedor. Solo
+            se listan usuarios con permiso de aprobar. Los nuevos se agregan al
+            final de la cadena.
           </p>
           <div className="grid gap-2 sm:grid-cols-2">
             {approvers.length === 0 ? (
               <p className="text-sm text-muted-foreground italic col-span-2">
-                No hay aprobadores activos. Crea uno en la sección Aprobadores.
+                No hay usuarios con permiso de aprobar. Crea uno en
+                Configuración.
               </p>
             ) : (
-              approvers.map((a) => (
-                <label
-                  key={a.id}
-                  className="flex items-start gap-2 rounded-md border p-3 cursor-pointer hover:bg-neutral-50"
-                >
-                  <Checkbox
-                    name="approver_ids"
-                    value={a.id}
-                    defaultChecked={assigned.has(a.id)}
-                    className="mt-0.5"
-                  />
-                  <div className="leading-tight">
-                    <div className="text-sm font-medium">{a.name}</div>
-                    <div className="text-xs text-muted-foreground">{a.email}</div>
-                  </div>
-                </label>
-              ))
+              approvers.map((a) => {
+                const order = assignedOrder?.[a.id];
+                return (
+                  <label
+                    key={a.id}
+                    className="flex items-start gap-2 rounded-md border p-3 cursor-pointer hover:bg-neutral-50"
+                  >
+                    <Checkbox
+                      name="approver_ids"
+                      value={a.id}
+                      checked={selected.has(a.id)}
+                      onCheckedChange={(state) =>
+                        toggleApprover(a.id, state === true)
+                      }
+                      className="mt-0.5"
+                    />
+                    <div className="flex-1 leading-tight">
+                      <div className="flex items-center gap-1.5 text-sm font-medium">
+                        {a.name}
+                        {mode === "sequential" && order && selected.has(a.id) ? (
+                          <span className="inline-flex size-5 items-center justify-center rounded-full bg-neutral-100 text-[11px] font-semibold tabular-nums text-neutral-600">
+                            {order}
+                          </span>
+                        ) : null}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {a.email}
+                      </div>
+                    </div>
+                  </label>
+                );
+              })
             )}
           </div>
         </div>
@@ -212,7 +321,7 @@ export function SupplierForm({
 
       <div className="flex items-center gap-2 justify-end">
         <Button asChild variant="ghost">
-          <Link href="/proveedores">Cancelar</Link>
+          <Link href={from ?? "/proveedores"}>Cancelar</Link>
         </Button>
         <SubmitButton pendingLabel={supplier ? "Guardando…" : "Creando…"}>
           {supplier ? "Guardar cambios" : "Crear proveedor"}

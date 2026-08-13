@@ -43,12 +43,19 @@ import { configureInvoiceApprovers } from "./actions";
 // Cuerpo del detalle de factura para la página completa (`/facturas/[id]`).
 export async function InvoiceDetail({
   invoiceId,
+  from,
 }: {
   invoiceId: string;
+  // URL de la lista de la que viene el usuario (con pestaña/filtros/página),
+  // para que "Volver" no destruya su contexto. Solo se acepta una ruta interna.
+  from?: string;
 }) {
   const id = invoiceId;
   const me = await getCurrentUser();
   if (!me) redirect("/login");
+
+  const backTo =
+    from && from.startsWith("/facturas") && !from.startsWith("//") ? from : null;
 
   const supabase = await createClient();
 
@@ -75,7 +82,9 @@ export async function InvoiceDetail({
 
   // Approvers solo pueden ver facturas a las que están asignados.
   if (me.role === "approver" && !myApproval) {
-    redirect("/mis-aprobaciones");
+    redirect(
+      `/mis-aprobaciones?error=${encodeURIComponent("Solo puedes ver facturas que te fueron asignadas")}`,
+    );
   }
 
   // Compras solo ve facturas de su frente ("ambos" da acceso a los dos),
@@ -88,7 +97,9 @@ export async function InvoiceDetail({
     invoice.business_front !== me.profile.business_front &&
     !myApproval
   ) {
-    redirect("/facturas");
+    redirect(
+      `/facturas?error=${encodeURIComponent("Esta factura pertenece a otro frente de negocio")}`,
+    );
   }
 
   const isStaff = me.role === "admin" || me.role === "purchasing";
@@ -185,7 +196,7 @@ export async function InvoiceDetail({
           invoiceId={invoice.id}
           invoiceNumber={invoice.invoice_number}
           status={invoice.status}
-          redirectTo="/facturas"
+          redirectTo={backTo ?? "/facturas"}
           variant="full"
         />
       ) : null}
@@ -197,7 +208,9 @@ export async function InvoiceDetail({
       className={`space-y-5 ${showMobileStickyBar ? "pb-28 lg:pb-0" : ""}`}
     >
       <PageHeader
-        backHref={me.role === "approver" ? "/mis-aprobaciones" : "/facturas"}
+        backHref={
+          me.role === "approver" ? "/mis-aprobaciones" : (backTo ?? "/facturas")
+        }
         backLabel={
           me.role === "approver"
             ? "Volver a mis aprobaciones"
@@ -513,7 +526,11 @@ export async function InvoiceDetail({
 
         <aside className="order-1 lg:order-none space-y-4">
           {myApproval && myApproval.status === "pending" ? (
-            <ApprovalActions invoiceId={invoice.id} approvalId={myApproval.id} />
+            <ApprovalActions
+              invoiceId={invoice.id}
+              approvalId={myApproval.id}
+              from={backTo}
+            />
           ) : null}
 
           {myApproval && myApproval.status !== "pending" ? (

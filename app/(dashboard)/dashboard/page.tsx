@@ -21,6 +21,7 @@ import { StatusBadge } from "@/components/status-badge";
 import { Money } from "@/components/money";
 import { ApprovalProgress } from "@/components/approval-progress";
 import { EmptyState } from "@/components/empty-state";
+import { FlashToast } from "@/components/flash-toast";
 import { PageHeader } from "@/components/page-header";
 import { SubmitButton } from "@/components/submit-button";
 import { createClient } from "@/lib/supabase/server";
@@ -117,6 +118,7 @@ export default async function DashboardPage({
 
   return (
     <div className="space-y-5">
+      <FlashToast />
       <PageHeader
         title="Dashboard"
         description="Vista consolidada del proceso de aprobación."

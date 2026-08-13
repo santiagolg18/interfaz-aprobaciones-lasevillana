@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { getCurrentUser } from "@/lib/auth/current-user";
+import { getCurrentUser, canApproveInvoices } from "@/lib/auth/current-user";
 import { logInvoiceActivity } from "@/lib/audit/log-activity";
 import { parseFront } from "@/lib/invoices/business-front";
 
@@ -180,6 +180,24 @@ export async function createManualInvoice(formData: FormData) {
   );
 
   const supabase = await createClient();
+
+  // Defensa en profundidad (igual que configureInvoiceApprovers): solo se
+  // pueden asignar usuarios elegibles para aprobar. Evita que reglas viejas
+  // inválidas (p. ej. un usuario de Compras sin can_approve) se propaguen a
+  // facturas que nunca podrían aprobarse.
+  const { data: selectedApprovers } = await supabase
+    .from("approvers")
+    .select("id, role, is_active, can_approve")
+    .in("id", approverIds);
+  const allEligible =
+    (selectedApprovers ?? []).length === approverIds.length &&
+    (selectedApprovers ?? []).every((a) => canApproveInvoices(a));
+  if (!allEligible) {
+    return redirectToNew(
+      "Uno de los aprobadores seleccionados no puede aprobar facturas",
+      formState,
+    );
+  }
 
   const { data: existing } = await supabase
     .from("invoices")

@@ -1,69 +1,45 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { requireAdmin } from "@/lib/auth/current-user";
+import { redirectWithError, redirectWithSuccess } from "@/lib/redirects";
 
-function parseBasic(formData: FormData) {
-  return {
-    id: (formData.get("id") as string) || undefined,
-    name: String(formData.get("name") ?? "").trim(),
-    email: String(formData.get("email") ?? "").trim().toLowerCase(),
-    is_active: formData.get("is_active") === "on",
-  };
-}
-
-export async function createApprover(formData: FormData) {
-  const input = parseBasic(formData);
-  if (!input.name || !input.email) {
-    redirect(
-      `/aprobadores/new?error=${encodeURIComponent("Nombre y email son requeridos")}`,
-    );
-  }
-
-  const supabase = await createClient();
-  const { error } = await supabase.from("approvers").insert({
-    name: input.name,
-    email: input.email,
-    is_active: input.is_active,
-  });
-
-  if (error) {
-    redirect(`/aprobadores/new?error=${encodeURIComponent(error.message)}`);
-  }
-
-  revalidatePath("/aprobadores");
-  redirect("/aprobadores");
-}
+// La creación de aprobadores vive en /configuracion/new (crea también la
+// cuenta de acceso). Aquí solo queda editar nombre/estado y activar/desactivar.
 
 export async function updateApprover(formData: FormData) {
-  const input = parseBasic(formData);
-  if (!input.id || !input.name || !input.email) {
-    redirect(`/aprobadores?error=${encodeURIComponent("Datos inválidos")}`);
+  await requireAdmin();
+
+  const id = (formData.get("id") as string) || undefined;
+  const name = String(formData.get("name") ?? "").trim();
+  const is_active = formData.get("is_active") === "on";
+
+  if (!id || !name) {
+    redirectWithError("/aprobadores", "Datos inválidos");
   }
 
   const supabase = await createClient();
+  // El email NO se actualiza: es el vínculo con la cuenta de acceso (login) y
+  // cambiarlo dejaría al usuario sin poder entrar. Igual que en Configuración.
   const { error } = await supabase
     .from("approvers")
-    .update({
-      name: input.name,
-      email: input.email,
-      is_active: input.is_active,
-    })
-    .eq("id", input.id!);
+    .update({ name, is_active })
+    .eq("id", id);
 
   if (error) {
-    redirect(
-      `/aprobadores/${input.id}?error=${encodeURIComponent(error.message)}`,
-    );
+    redirectWithError(`/aprobadores/${id}`, error.message);
   }
 
   revalidatePath("/aprobadores");
-  revalidatePath(`/aprobadores/${input.id}`);
-  redirect("/aprobadores");
+  revalidatePath(`/aprobadores/${id}`);
+  revalidatePath("/configuracion");
+  redirectWithSuccess("/aprobadores", `Aprobador ${name} actualizado`);
 }
 
 export async function toggleApproverActive(formData: FormData) {
+  await requireAdmin();
+
   const id = String(formData.get("id") ?? "");
   const nextActive = formData.get("next_active") === "true";
   if (!id) return;
@@ -75,8 +51,13 @@ export async function toggleApproverActive(formData: FormData) {
     .eq("id", id);
 
   if (error) {
-    redirect(`/aprobadores?error=${encodeURIComponent(error.message)}`);
+    redirectWithError("/aprobadores", error.message);
   }
 
   revalidatePath("/aprobadores");
+  revalidatePath("/configuracion");
+  redirectWithSuccess(
+    "/aprobadores",
+    nextActive ? "Aprobador activado" : "Aprobador desactivado",
+  );
 }
