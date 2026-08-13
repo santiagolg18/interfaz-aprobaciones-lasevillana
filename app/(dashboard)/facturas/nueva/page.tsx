@@ -93,7 +93,11 @@ export default async function NuevaFacturaPage({
         suppliers={suppliers}
         errorMessage={sp.error}
         existingInvoiceId={sp.existing_id}
-        canChooseFront={me.role === "admin"}
+        canChooseFront={
+          me.role === "admin" ||
+          (me.role === "purchasing" &&
+            me.profile?.business_front === "ambos")
+        }
         defaults={{
           supplier_nit: sp.supplier_nit,
           supplier_name: sp.supplier_name,

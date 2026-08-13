@@ -17,10 +17,21 @@ export function frontLabel(front: BusinessFront): string {
   return front === "parrilla" ? "Parrilla" : "Agropecuaria";
 }
 
+// Valor asignable en `approvers.business_front`: un frente concreto o "ambos".
+// Las facturas nunca llevan "ambos"; por eso este tipo es aparte de BusinessFront.
+export type AssignedFront = BusinessFront | "ambos";
+
+export function parseAssignedFront(value: unknown): AssignedFront | null {
+  const s = typeof value === "string" ? value.trim().toLowerCase() : "";
+  return s === "ambos" ? "ambos" : parseFront(s);
+}
+
 /**
  * Frente de negocio efectivo por el que se deben filtrar las facturas para el
  * usuario actual:
- * - Compras: SIEMPRE su frente asignado (ignora lo que pida la URL).
+ * - Compras con un frente: SIEMPRE su frente asignado (ignora lo que pida la URL).
+ * - Compras con "ambos": el frente solicitado por la URL (o null = ver todos),
+ *   igual que el admin.
  * - Admin: el frente solicitado por la URL (o null = ver todos).
  * - Otros roles: null (sin restriccion a este nivel).
  */
@@ -30,7 +41,9 @@ export function resolveInvoiceScope(
 ): BusinessFront | null {
   if (!me) return null;
   if (me.role === "purchasing") {
-    return parseFront(me.profile?.business_front ?? null);
+    const assigned = parseAssignedFront(me.profile?.business_front ?? null);
+    if (assigned === "ambos") return parseFront(requestedFront ?? null);
+    return assigned;
   }
   if (me.role === "admin") {
     return parseFront(requestedFront ?? null);

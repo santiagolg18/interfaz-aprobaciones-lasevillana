@@ -45,11 +45,11 @@ function navForRole(
     return [{ href: "/mis-aprobaciones", label: "Mis aprobaciones", icon: CheckSquare }];
   }
 
-  // Admin: dos secciones separadas, una por frente de negocio.
-  // Compras: una sola sección, etiquetada con su frente asignado (el filtrado
-  // lo fuerza el servidor según su perfil).
+  // Admin y Compras con "ambos": dos secciones separadas, una por frente.
+  // Compras con un solo frente: una sola sección, etiquetada con su frente
+  // asignado (el filtrado lo fuerza el servidor según su perfil).
   const facturasItems: NavItem[] =
-    role === "admin"
+    role === "admin" || businessFront === "ambos"
       ? [
           {
             href: "/facturas?front=parrilla",

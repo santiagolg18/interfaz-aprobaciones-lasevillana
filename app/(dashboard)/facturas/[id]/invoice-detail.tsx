@@ -78,11 +78,13 @@ export async function InvoiceDetail({
     redirect("/mis-aprobaciones");
   }
 
-  // Compras solo ve facturas de su frente, EXCEPTO si la factura le fue asignada
-  // como aprobador (puede aprobar facturas de cualquier frente que le asignen).
+  // Compras solo ve facturas de su frente ("ambos" da acceso a los dos),
+  // EXCEPTO si la factura le fue asignada como aprobador (puede aprobar
+  // facturas de cualquier frente que le asignen).
   if (
     me.role === "purchasing" &&
     me.profile?.business_front &&
+    me.profile.business_front !== "ambos" &&
     invoice.business_front !== me.profile.business_front &&
     !myApproval
   ) {

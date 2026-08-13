@@ -113,11 +113,13 @@ export async function createManualInvoice(formData: FormData) {
   const dueDate = String(formData.get("due_date") ?? "").trim() || null;
   const description = String(formData.get("description") ?? "").trim() || null;
   // Frente de negocio de la factura: Compras la estampa con su frente asignado;
-  // el admin lo elige en el formulario.
-  const businessFront =
-    me.role === "purchasing"
-      ? parseFront(me.profile.business_front)
-      : parseFront(formData.get("business_front"));
+  // el admin (y Compras con "ambos" frentes) lo elige en el formulario.
+  const chooseFrontInForm =
+    me.role === "admin" ||
+    (me.role === "purchasing" && me.profile.business_front === "ambos");
+  const businessFront = chooseFrontInForm
+    ? parseFront(formData.get("business_front"))
+    : parseFront(me.profile.business_front);
   const approverIds = formData
     .getAll("approver_ids")
     .map(String)
@@ -153,7 +155,7 @@ export async function createManualInvoice(formData: FormData) {
     return redirectToNew("Monto total inválido", formState);
   }
   if (!issueDate) return redirectToNew("Falta la fecha de emisión", formState);
-  if (me.role === "admin" && !businessFront) {
+  if (chooseFrontInForm && !businessFront) {
     return redirectToNew("Selecciona el frente de negocio", formState);
   }
   if (approverIds.length === 0)

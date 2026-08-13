@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireAdmin } from "@/lib/auth/current-user";
-import { parseFront } from "@/lib/invoices/business-front";
+import { parseAssignedFront } from "@/lib/invoices/business-front";
 
 type Role = "admin" | "approver" | "purchasing";
 
@@ -16,8 +16,9 @@ function parseRole(v: FormDataEntryValue | null): Role {
 }
 
 // El frente de negocio solo aplica al rol Compras; en cualquier otro rol queda null.
+// Acepta "ambos" para dar acceso a los dos frentes.
 function frontForRole(role: Role, v: FormDataEntryValue | null): string | null {
-  return role === "purchasing" ? parseFront(v) : null;
+  return role === "purchasing" ? parseAssignedFront(v) : null;
 }
 
 export async function createUserWithAuth(formData: FormData) {

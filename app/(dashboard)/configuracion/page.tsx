@@ -322,7 +322,9 @@ function RoleBadge({
         ? "Parrilla"
         : businessFront === "agropecuaria"
           ? "Agropecuaria"
-          : null;
+          : businessFront === "ambos"
+            ? "Ambos"
+            : null;
     return (
       <div className="flex flex-wrap items-center justify-end gap-1">
         <Badge className="bg-sky-100 text-sky-700 hover:bg-sky-100 border-0">

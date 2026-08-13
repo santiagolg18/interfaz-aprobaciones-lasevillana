@@ -123,9 +123,11 @@ export function UserConfigForm({
             </option>
             <option value="parrilla">Parrilla</option>
             <option value="agropecuaria">Agropecuaria</option>
+            <option value="ambos">Ambos (Parrilla y Agropecuaria)</option>
           </select>
           <p className="text-xs text-muted-foreground">
             Este usuario de Compras verá únicamente las facturas de este frente.
+            Con &quot;Ambos&quot; verá las facturas de los dos frentes.
           </p>
         </div>
       ) : null}
