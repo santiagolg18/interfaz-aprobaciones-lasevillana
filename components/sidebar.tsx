@@ -120,11 +120,11 @@ function NavLinks({ nav, onNavigate }: { nav: NavItem[]; onNavigate?: () => void
               "relative flex items-center gap-2.5 rounded-md px-3 py-2 min-h-11 lg:min-h-0 text-sm font-medium transition-colors",
               "before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-[3px] before:rounded-r-full before:transition-colors",
               active
-                ? "bg-primary/10 text-primary before:bg-primary"
+                ? "bg-brand/[0.07] text-brand-dark before:bg-brand"
                 : "text-neutral-700 before:bg-transparent hover:bg-neutral-100 hover:text-neutral-900",
             )}
           >
-            <Icon className={cn("size-4", active ? "text-primary" : "text-neutral-500")} />
+            <Icon className={cn("size-4", active ? "text-brand" : "text-neutral-500")} />
             {label}
           </Link>
         );
@@ -149,7 +149,7 @@ function SidebarBody({
   return (
     <div className="flex h-full flex-col">
       {/* Brand header — La Sevillana */}
-      <div className="flex h-20 items-center justify-center px-6 bg-[#111111]">
+      <div className="flex h-20 items-center justify-center px-6 bg-[#111111] border-b-2 border-brand">
         <Image
           src={LOGO_URL}
           alt="La Sevillana"
@@ -163,7 +163,7 @@ function SidebarBody({
 
       {/* App label strip */}
       <div className="flex items-center gap-2.5 px-4 py-3 border-b bg-white">
-        <div className="flex size-8 items-center justify-center rounded-md bg-primary/10 text-primary ring-1 ring-inset ring-primary/15">
+        <div className="flex size-8 items-center justify-center rounded-md bg-brand/10 text-brand ring-1 ring-inset ring-brand/15">
           <Receipt className="size-4" />
         </div>
         <div className="leading-tight">
@@ -178,7 +178,7 @@ function SidebarBody({
 
       <div className="border-t p-3 space-y-3">
         <div className="flex items-center gap-2.5 px-1">
-          <Avatar name={userDisplay} size="sm" tone="primary" />
+          <Avatar name={userDisplay} size="sm" tone="brand" />
           <div className="min-w-0 leading-tight">
             <div
               className="text-sm font-medium text-neutral-900 truncate"
@@ -227,7 +227,7 @@ export function Sidebar({
       </aside>
 
       {/* Mobile / tablet */}
-      <header className="lg:hidden flex h-14 items-center justify-between border-b bg-[#111111] px-4 sticky top-0 z-40 pt-[env(safe-area-inset-top)]">
+      <header className="lg:hidden flex h-14 items-center justify-between border-b-2 border-brand bg-[#111111] px-4 sticky top-0 z-40 pt-[env(safe-area-inset-top)]">
         <Image
           src={LOGO_URL}
           alt="La Sevillana"

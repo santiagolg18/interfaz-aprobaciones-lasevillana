@@ -5,6 +5,10 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
+  /* Rojo de marca La Sevillana: acentos de identidad (rieles, íconos, cintas).
+     brand-dark es la variante con contraste AA para texto pequeño sobre blanco. */
+  --color-brand: #e12533;
+  --color-brand-dark: #c81e2b;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-sans);

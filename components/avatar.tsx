@@ -17,14 +17,16 @@ export function Avatar({
   className,
 }: {
   name: string;
-  tone?: "primary" | "muted";
+  tone?: "primary" | "muted" | "brand";
   size?: "sm" | "md" | "lg";
   className?: string;
 }) {
   const palette =
     tone === "muted"
       ? "bg-neutral-100 text-neutral-600 ring-neutral-200"
-      : "bg-primary/10 text-primary ring-primary/15";
+      : tone === "brand"
+        ? "bg-brand/10 text-brand-dark ring-brand/15"
+        : "bg-primary/10 text-primary ring-primary/15";
   const dim =
     size === "lg"
       ? "size-10 text-sm"

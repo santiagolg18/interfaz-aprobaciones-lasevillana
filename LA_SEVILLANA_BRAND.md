@@ -27,6 +27,15 @@
 
 El negro `#111111` (no puro `#000000`) da profundidad sin perder elegancia y contrasta perfectamente con el logo blanco.
 
+## Rojo de marca (acentos)
+
+| Rol | Valor | Uso |
+|-----|-------|-----|
+| Rojo del logo / acento | `#e12533` | Cinta de 2px bajo el header negro, riel del ítem de nav activo, íconos de identidad, fondos tenues (`/10`) |
+| Rojo para texto pequeño | `#c81e2b` | Texto sobre blanco (el `#e12533` no alcanza contraste AA en letra pequeña) |
+
+Reglas: el rojo es de **identidad y navegación**, no de acciones. Los botones de acción mantienen el color primario de la app, "aprobar" sigue en verde y "rechazar/eliminar" en rosa — nunca usar el rojo de marca para acciones destructivas, se confundiría con error. En Tailwind v4 se exponen como `--color-brand` y `--color-brand-dark` en `@theme`.
+
 ---
 
 ## Estructura del header en sidebar (desktop)
