@@ -13,6 +13,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 
 export type ConfirmResult = { ok: boolean; error?: string };
@@ -89,13 +90,13 @@ export function ConfirmDialog({
               >
                 {reasonLabel}
               </label>
-              <textarea
+              <Textarea
                 id="confirm-reason"
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
                 placeholder={reasonPlaceholder}
                 rows={3}
-                className="w-full resize-none rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+                className="resize-none"
               />
             </div>
           ) : null}
@@ -113,7 +114,7 @@ export function ConfirmDialog({
               disabled={pending}
               className={cn(
                 variant === "destructive" &&
-                  "bg-rose-600 text-white hover:bg-rose-700",
+                  "bg-destructive text-white hover:bg-destructive/90",
               )}
             >
               {pending ? <Loader2 className="size-4 animate-spin" /> : null}

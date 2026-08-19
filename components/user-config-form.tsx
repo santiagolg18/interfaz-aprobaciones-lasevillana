@@ -9,6 +9,7 @@ import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { SubmitButton } from "@/components/submit-button";
 import { PasswordInput } from "@/components/password-input";
+import { FormSelect } from "@/components/form-select";
 
 type UserRow = {
   id: string;
@@ -111,12 +112,11 @@ export function UserConfigForm({
       {role === "purchasing" ? (
         <div className="space-y-1.5">
           <Label htmlFor="business_front">Frente de negocio</Label>
-          <select
+          <FormSelect
             id="business_front"
             name="business_front"
             required
             defaultValue={user?.business_front ?? ""}
-            className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           >
             <option value="" disabled>
               Selecciona…
@@ -124,7 +124,7 @@ export function UserConfigForm({
             <option value="parrilla">Parrilla</option>
             <option value="agropecuaria">Agropecuaria</option>
             <option value="ambos">Ambos (Parrilla y Agropecuaria)</option>
-          </select>
+          </FormSelect>
           <p className="text-xs text-muted-foreground">
             Este usuario de Compras verá únicamente las facturas de este frente.
             Con &quot;Ambos&quot; verá las facturas de los dos frentes.

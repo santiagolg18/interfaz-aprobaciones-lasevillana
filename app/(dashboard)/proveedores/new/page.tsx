@@ -44,7 +44,7 @@ export default async function NuevoProveedorPage({
         </Button>
         <h1 className="text-2xl font-semibold tracking-tight">Nuevo proveedor</h1>
       </div>
-      <div className="rounded-lg border bg-white p-6">
+      <div className="surface p-6">
         <SupplierForm
           action={createSupplier}
           approvers={eligibleApprovers}

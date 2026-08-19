@@ -50,7 +50,7 @@ export default async function EditarUsuarioPage({
         description={user.email}
       />
 
-      <div className="rounded-lg border bg-white p-5 shadow-[0_1px_2px_0_rgb(0_0_0/0.03)]">
+      <div className="surface p-5">
         <UserConfigForm
           action={updateUserConfig}
           user={{
@@ -69,7 +69,7 @@ export default async function EditarUsuarioPage({
       {user.auth_user_id ? (
         <div
           id="reset-password"
-          className="rounded-lg border bg-white p-5 shadow-[0_1px_2px_0_rgb(0_0_0/0.03)] scroll-mt-20"
+          className="surface p-5 scroll-mt-20"
         >
           <div className="flex items-start gap-3 mb-4">
             <div className="flex size-9 items-center justify-center rounded-md bg-amber-100 text-amber-700">
@@ -108,7 +108,7 @@ export default async function EditarUsuarioPage({
       ) : (
         <div
           id="create-account"
-          className="rounded-lg border border-amber-200 bg-amber-50/50 p-5 shadow-[0_1px_2px_0_rgb(0_0_0/0.03)] scroll-mt-20"
+          className="surface border-amber-200 bg-amber-50/50 p-5 scroll-mt-20"
         >
           <div className="flex items-start gap-3 mb-4">
             <div className="flex size-9 items-center justify-center rounded-md bg-amber-100 text-amber-700">

@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { SubmitButton } from "@/components/submit-button";
+import { FormSelect } from "@/components/form-select";
 
 type Approver = { id: string; name: string; email: string };
 type SupplierOption = {
@@ -161,7 +162,7 @@ export function NewInvoiceForm({
         </div>
       ) : null}
 
-      <section className="rounded-lg border bg-white p-4 shadow-[0_1px_2px_0_rgb(0_0_0/0.03)] space-y-4">
+      <section className="surface p-4 space-y-4">
         <h2 className="text-sm font-semibold text-neutral-900">Proveedor</h2>
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-1.5">
@@ -219,7 +220,7 @@ export function NewInvoiceForm({
         </div>
       </section>
 
-      <section className="rounded-lg border bg-white p-4 shadow-[0_1px_2px_0_rgb(0_0_0/0.03)] space-y-4">
+      <section className="surface p-4 space-y-4">
         <h2 className="text-sm font-semibold text-neutral-900">
           Datos de la factura
         </h2>
@@ -281,19 +282,18 @@ export function NewInvoiceForm({
           {canChooseFront ? (
             <div className="space-y-1.5">
               <Label htmlFor="business_front">Frente de negocio</Label>
-              <select
+              <FormSelect
                 id="business_front"
                 name="business_front"
                 required
                 defaultValue={defaults?.business_front ?? ""}
-                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
               >
                 <option value="" disabled>
                   Selecciona…
                 </option>
                 <option value="parrilla">Parrilla</option>
                 <option value="agropecuaria">Agropecuaria</option>
-              </select>
+              </FormSelect>
             </div>
           ) : null}
         </div>
@@ -311,7 +311,7 @@ export function NewInvoiceForm({
 
       <section
         ref={fileSectionRef}
-        className={`rounded-lg border bg-white p-4 shadow-[0_1px_2px_0_rgb(0_0_0/0.03)] space-y-3 ${
+        className={`surface p-4 space-y-3 ${
           fileError ? "border-rose-300" : ""
         }`}
       >
@@ -350,7 +350,7 @@ export function NewInvoiceForm({
         ) : null}
       </section>
 
-      <section className="rounded-lg border bg-white p-4 shadow-[0_1px_2px_0_rgb(0_0_0/0.03)] space-y-4">
+      <section className="surface p-4 space-y-4">
         <div className="flex items-baseline justify-between gap-3">
           <h2 className="text-sm font-semibold text-neutral-900">Aprobadores</h2>
           <span className="text-xs text-muted-foreground">

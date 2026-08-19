@@ -55,7 +55,7 @@ export function PoFileCard({
 
   return (
     <div className="space-y-3">
-      <div className="flex items-start gap-3 rounded-lg border bg-white p-3">
+      <div className="flex items-start gap-3 surface p-3">
         <div className="flex size-10 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
           <Icon className="size-5" />
         </div>

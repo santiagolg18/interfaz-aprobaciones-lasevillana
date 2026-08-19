@@ -227,7 +227,7 @@ export function PrintQueue({
         {items.map((inv) => (
           <li
             key={inv.id}
-            className="rounded-xl border bg-white p-4 shadow-[0_1px_2px_0_rgb(0_0_0/0.03)]"
+            className="surface p-4"
           >
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0 flex-1">
@@ -279,7 +279,7 @@ export function PrintQueue({
       </ul>
 
       {/* Desktop: table */}
-      <div className="hidden md:block rounded-lg border bg-white overflow-hidden shadow-[0_1px_2px_0_rgb(0_0_0/0.03)]">
+      <div className="surface hidden md:block overflow-hidden">
         <Table>
           <TableHeader>
             <TableRow>

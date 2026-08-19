@@ -24,6 +24,7 @@ import { EmptyState } from "@/components/empty-state";
 import { FlashToast } from "@/components/flash-toast";
 import { PageHeader } from "@/components/page-header";
 import { SubmitButton } from "@/components/submit-button";
+import { StatCard } from "@/components/stat-card";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/auth/current-user";
 import {
@@ -124,7 +125,7 @@ export default async function DashboardPage({
         description="Vista consolidada del proceso de aprobación."
       />
 
-      <form className="rounded-lg border bg-white p-4 grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end shadow-[0_1px_2px_0_rgb(0_0_0/0.03)]">
+      <form className="surface p-4 grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
         <div className="space-y-1.5">
           <Label htmlFor="from" className="text-sm font-medium">
             Desde
@@ -148,37 +149,41 @@ export default async function DashboardPage({
       </form>
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <KpiCard
+        <StatCard
+          size="lg"
           label="Total"
           value={counts.total.toString()}
           icon={<Clock className="size-5" />}
-          tint="bg-neutral-100 text-neutral-700"
+          iconClassName="bg-neutral-100 text-neutral-700"
         />
-        <KpiCard
+        <StatCard
+          size="lg"
           label="Pendientes"
           value={counts.pending.toString()}
           hint={pct(counts.pending)}
           icon={<AlertTriangle className="size-5" />}
-          tint="bg-amber-50 text-amber-700"
+          iconClassName="bg-amber-50 text-amber-700"
         />
-        <KpiCard
+        <StatCard
+          size="lg"
           label="Aprobadas"
           value={counts.approved.toString()}
           hint={pct(counts.approved)}
           icon={<CheckCircle2 className="size-5" />}
-          tint="bg-emerald-50 text-emerald-700"
+          iconClassName="bg-emerald-50 text-emerald-700"
         />
-        <KpiCard
+        <StatCard
+          size="lg"
           label="Rechazadas"
           value={counts.rejected.toString()}
           hint={pct(counts.rejected)}
           icon={<XCircle className="size-5" />}
-          tint="bg-rose-50 text-rose-700"
+          iconClassName="bg-rose-50 text-rose-700"
         />
       </div>
 
       <div className="grid gap-3 lg:grid-cols-2">
-        <div className="rounded-lg border bg-white p-5 shadow-[0_1px_2px_0_rgb(0_0_0/0.03)]">
+        <div className="surface p-5">
           <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
             Tiempo promedio de aprobación
           </div>
@@ -189,7 +194,7 @@ export default async function DashboardPage({
             Promedio desde que se recibe la factura hasta que se completa el proceso.
           </p>
         </div>
-        <div className="rounded-lg border bg-white p-5 shadow-[0_1px_2px_0_rgb(0_0_0/0.03)]">
+        <div className="surface p-5">
           <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
             Monto total aprobado
           </div>
@@ -213,7 +218,7 @@ export default async function DashboardPage({
         </div>
 
         {(oldest ?? []).length === 0 ? (
-          <div className="rounded-lg border bg-white shadow-[0_1px_2px_0_rgb(0_0_0/0.03)]">
+          <div className="surface">
             <EmptyState
               icon={<Inbox />}
               title="No hay facturas pendientes"
@@ -230,7 +235,7 @@ export default async function DashboardPage({
                   <li key={inv.id}>
                     <Link
                       href={`/facturas/${inv.id}`}
-                      className="block rounded-lg border bg-white p-4 shadow-[0_1px_2px_0_rgb(0_0_0/0.03)] active:bg-neutral-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+                      className="surface block p-4 active:bg-neutral-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
@@ -264,7 +269,7 @@ export default async function DashboardPage({
             </ul>
 
             {/* Desktop: table */}
-            <div className="hidden md:block rounded-lg border bg-white overflow-hidden shadow-[0_1px_2px_0_rgb(0_0_0/0.03)]">
+            <div className="surface hidden md:block overflow-hidden">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -322,46 +327,6 @@ export default async function DashboardPage({
           </>
         )}
       </section>
-    </div>
-  );
-}
-
-function KpiCard({
-  label,
-  value,
-  icon,
-  tint,
-  hint,
-}: {
-  label: string;
-  value: string;
-  icon: React.ReactNode;
-  tint: string;
-  hint?: string;
-}) {
-  return (
-    <div className="rounded-lg border bg-white p-5 shadow-[0_1px_2px_0_rgb(0_0_0/0.03)]">
-      <div className="flex items-center justify-between">
-        <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-          {label}
-        </div>
-        <div
-          className={cn(
-            "flex size-9 items-center justify-center rounded-md",
-            tint,
-          )}
-        >
-          {icon}
-        </div>
-      </div>
-      <div className="mt-3 text-3xl font-semibold tabular-nums leading-none text-neutral-900">
-        {value}
-      </div>
-      {hint ? (
-        <div className="mt-2 text-xs text-muted-foreground tabular-nums">
-          {hint}
-        </div>
-      ) : null}
     </div>
   );
 }

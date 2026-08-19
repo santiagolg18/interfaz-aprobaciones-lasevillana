@@ -51,7 +51,7 @@ export async function InvoiceActivityTimeline({
   const rows = events ?? [];
 
   return (
-    <section className="rounded-lg border bg-white p-4 shadow-[0_1px_2px_0_rgb(0_0_0/0.03)] sm:p-5">
+    <section className="surface p-4 sm:p-5">
       <div className="mb-4 flex items-center gap-2">
         <History className="size-4 text-muted-foreground" />
         <h2 className="text-sm font-semibold text-neutral-900">

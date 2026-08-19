@@ -44,7 +44,7 @@ export default async function EditarAprobadorPage({
         <h1 className="text-2xl font-semibold tracking-tight">Editar aprobador</h1>
         <p className="text-sm text-muted-foreground">{approver.name}</p>
       </div>
-      <div className="rounded-lg border bg-white p-6">
+      <div className="surface p-6">
         <ApproverForm
           action={updateApprover}
           approver={{

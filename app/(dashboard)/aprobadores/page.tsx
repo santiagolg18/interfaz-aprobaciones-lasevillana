@@ -17,6 +17,8 @@ import { ApproverToggleButton } from "@/components/approver-toggle-button";
 import { Avatar } from "@/components/avatar";
 import { EmptyState } from "@/components/empty-state";
 import { PageHeader } from "@/components/page-header";
+import { StatCard } from "@/components/stat-card";
+import { InfoBanner } from "@/components/info-banner";
 import { createClient } from "@/lib/supabase/server";
 import { requireStaff } from "@/lib/auth/current-user";
 import { sanitizeSearchTerm } from "@/lib/search";
@@ -170,18 +172,18 @@ export default async function AprobadoresPage({
         />
       </div>
 
-      <div className="rounded-lg border bg-white p-4 shadow-[0_1px_2px_0_rgb(0_0_0/0.03)]">
+      <div className="surface p-4">
         <ApproverFilters />
       </div>
 
       {error ? (
-        <div className="rounded-md border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
+        <InfoBanner tone="error">
           {error.message}
-        </div>
+        </InfoBanner>
       ) : null}
 
       {filtered.length === 0 ? (
-        <div className="rounded-lg border bg-white shadow-[0_1px_2px_0_rgb(0_0_0/0.03)]">
+        <div className="surface">
           <EmptyState
             icon={<Users />}
             title={hasFilters ? "Sin resultados" : "Aún no hay aprobadores"}
@@ -211,7 +213,7 @@ export default async function AprobadoresPage({
             {filtered.map((a) => (
               <li
                 key={a.id}
-                className="rounded-lg border bg-white p-4 shadow-[0_1px_2px_0_rgb(0_0_0/0.03)]"
+                className="surface p-4"
               >
                 <div className="flex items-start justify-between gap-3">
                   {/* La edición es solo de admin: para Compras el nombre no es link. */}
@@ -235,9 +237,7 @@ export default async function AprobadoresPage({
                   {a.is_active ? (
                     <StatusBadge status="approved" />
                   ) : (
-                    <span className="inline-flex items-center rounded-full bg-neutral-100 px-2.5 py-0.5 text-xs font-medium text-neutral-700 ring-1 ring-inset ring-neutral-200 shrink-0">
-                      Inactivo
-                    </span>
+                    <Badge variant="outline" className="border-neutral-200 bg-neutral-100 text-neutral-600 shrink-0">Inactivo</Badge>
                   )}
                 </div>
                 <div className="mt-3 flex items-center justify-between gap-3 pt-3 border-t">
@@ -280,7 +280,7 @@ export default async function AprobadoresPage({
           </ul>
 
           {/* Desktop: table */}
-          <div className="hidden md:block rounded-lg border bg-white overflow-hidden shadow-[0_1px_2px_0_rgb(0_0_0/0.03)]">
+          <div className="surface hidden md:block overflow-hidden">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -349,9 +349,7 @@ export default async function AprobadoresPage({
                       {a.is_active ? (
                         <StatusBadge status="approved" />
                       ) : (
-                        <span className="inline-flex items-center rounded-full bg-neutral-100 px-2.5 py-0.5 text-xs font-medium text-neutral-700 ring-1 ring-inset ring-neutral-200">
-                          Inactivo
-                        </span>
+                        <Badge variant="outline" className="border-neutral-200 bg-neutral-100 text-neutral-600">Inactivo</Badge>
                       )}
                     </TableCell>
                     <TableCell className="text-right">
@@ -403,54 +401,5 @@ function MaybeLink({
     <Link href={href} className={className}>
       {children}
     </Link>
-  );
-}
-
-function StatCard({
-  icon,
-  label,
-  value,
-  hint,
-  tone = "default",
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value: number;
-  hint?: string;
-  tone?: "default" | "warning";
-}) {
-  const toneClass =
-    tone === "warning"
-      ? "border-amber-200 bg-amber-50"
-      : "border-neutral-200 bg-white";
-  const iconClass =
-    tone === "warning"
-      ? "bg-amber-100 text-amber-700"
-      : "bg-neutral-100 text-neutral-600";
-  return (
-    <div
-      className={`rounded-lg border p-4 shadow-[0_1px_2px_0_rgb(0_0_0/0.03)] ${toneClass}`}
-    >
-      <div className="flex items-center justify-between">
-        <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-          {label}
-        </p>
-        <span
-          className={`flex size-8 items-center justify-center rounded-md ${iconClass}`}
-        >
-          {icon}
-        </span>
-      </div>
-      <div className="mt-3 flex items-baseline gap-2">
-        <p className="text-2xl font-semibold tabular-nums text-neutral-900">
-          {value.toLocaleString("es-CO")}
-        </p>
-        {hint && (
-          <span className="text-xs text-muted-foreground tabular-nums">
-            {hint}
-          </span>
-        )}
-      </div>
-    </div>
   );
 }

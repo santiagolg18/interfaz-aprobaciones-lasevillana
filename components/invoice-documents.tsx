@@ -132,7 +132,7 @@ export function InvoiceDocuments({
   const showPoFileCard = mode === "po" && hasPO && canManagePO;
 
   return (
-    <div className="rounded-lg border bg-white shadow-[0_1px_2px_0_rgb(0_0_0/0.03)]">
+    <div className="surface">
       <div className="sticky top-[calc(3.5rem+env(safe-area-inset-top))] lg:top-0 z-20 flex flex-wrap items-center justify-between gap-2 rounded-t-lg border-b bg-white px-3 py-2">
         <div className="flex items-center gap-3">
           <h2 className="text-sm font-semibold text-neutral-900">Documentos</h2>

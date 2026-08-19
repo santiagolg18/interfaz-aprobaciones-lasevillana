@@ -20,6 +20,7 @@ import {
   HistoryFilters,
 } from "@/components/history-filters";
 import type { PendingRow } from "@/components/pending-approvals-list";
+import { StatCard } from "@/components/stat-card";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/auth/current-user";
 import { formatDateTime } from "@/lib/format";
@@ -215,7 +216,7 @@ export default async function MisAprobacionesPage({
           Pendientes por aprobar
         </h2>
         {pendingCount === 0 ? (
-          <div className="rounded-lg border bg-white shadow-[0_1px_2px_0_rgb(0_0_0/0.03)]">
+          <div className="surface">
             <EmptyState
               icon={<Inbox />}
               title="Nada pendiente"
@@ -243,7 +244,7 @@ export default async function MisAprobacionesPage({
         <HistoryFilters />
 
         {historyTotal === 0 ? (
-          <div className="rounded-lg border bg-white shadow-[0_1px_2px_0_rgb(0_0_0/0.03)]">
+          <div className="surface">
             <EmptyState
               icon={<CheckCircle2 />}
               title="Sin historial"
@@ -264,7 +265,7 @@ export default async function MisAprobacionesPage({
                   <li key={r.approvalId}>
                     <Link
                       href={`/facturas/${inv.id}`}
-                      className="block rounded-lg border bg-white p-4 shadow-[0_1px_2px_0_rgb(0_0_0/0.03)] active:bg-neutral-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+                      className="surface block p-4 active:bg-neutral-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
@@ -293,7 +294,7 @@ export default async function MisAprobacionesPage({
             </ul>
 
             {/* Desktop: table */}
-            <div className="hidden md:block rounded-lg border bg-white overflow-hidden shadow-[0_1px_2px_0_rgb(0_0_0/0.03)]">
+            <div className="surface hidden md:block overflow-hidden">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -346,50 +347,6 @@ export default async function MisAprobacionesPage({
           </>
         )}
       </section>
-    </div>
-  );
-}
-
-function StatCard({
-  icon,
-  label,
-  value,
-  tone = "default",
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value: number;
-  tone?: "default" | "warning" | "danger";
-}) {
-  const toneClass =
-    tone === "warning"
-      ? "border-amber-200 bg-amber-50"
-      : tone === "danger"
-        ? "border-rose-200 bg-rose-50"
-        : "border-neutral-200 bg-white";
-  const iconClass =
-    tone === "warning"
-      ? "bg-amber-100 text-amber-700"
-      : tone === "danger"
-        ? "bg-rose-100 text-rose-700"
-        : "bg-neutral-100 text-neutral-600";
-  return (
-    <div
-      className={`rounded-lg border p-4 shadow-[0_1px_2px_0_rgb(0_0_0/0.03)] ${toneClass}`}
-    >
-      <div className="flex items-center justify-between">
-        <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-          {label}
-        </p>
-        <span
-          className={`flex size-8 items-center justify-center rounded-md ${iconClass}`}
-        >
-          {icon}
-        </span>
-      </div>
-      <p className="mt-3 text-2xl font-semibold tabular-nums text-neutral-900">
-        {value.toLocaleString("es-CO")}
-      </p>
     </div>
   );
 }

@@ -37,7 +37,7 @@ export function ApprovalActions({
   return (
     <>
       {/* Desktop card */}
-      <div className="hidden lg:block rounded-lg border bg-white p-4 shadow-[0_1px_2px_0_rgb(0_0_0/0.03)]">
+      <div className="surface hidden lg:block p-4">
         <div className="mb-3">
           <h2 className="text-sm font-semibold text-neutral-900">
             Tu decisión
@@ -49,7 +49,7 @@ export function ApprovalActions({
         <div className="flex flex-col gap-2 sm:flex-row">
           <Button
             type="button"
-            className="flex-1 bg-[#16a34a] hover:bg-[#15803d] text-white"
+            className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white"
             onClick={() => setMode("approve")}
           >
             <Check className="size-4" />
@@ -81,7 +81,7 @@ export function ApprovalActions({
           </Button>
           <Button
             type="button"
-            className="flex-1 h-12 bg-[#16a34a] hover:bg-[#15803d] text-white"
+            className="flex-1 h-12 bg-emerald-600 hover:bg-emerald-700 text-white"
             onClick={() => setMode("approve")}
           >
             <Check className="size-4" />
@@ -140,7 +140,7 @@ export function ApprovalActions({
               {isApprove ? (
                 <SubmitButton
                   pendingLabel="Aprobando…"
-                  className="bg-[#16a34a] hover:bg-[#15803d] text-white"
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white"
                 >
                   <Check className="size-4" />
                   Confirmar aprobación

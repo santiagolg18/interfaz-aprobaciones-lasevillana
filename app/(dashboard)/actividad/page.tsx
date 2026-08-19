@@ -6,6 +6,7 @@ import { FlashToast } from "@/components/flash-toast";
 import { Pagination } from "@/components/pagination";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { FormSelect } from "@/components/form-select";
 import { createClient } from "@/lib/supabase/server";
 import { requireStaff } from "@/lib/auth/current-user";
 import { formatDateTime, formatCOP } from "@/lib/format";
@@ -94,7 +95,7 @@ export default async function ActividadPage({
       {/* Filtros (formulario GET, sin JS) */}
       <form
         method="get"
-        className="flex flex-col gap-2 rounded-lg border bg-white p-3 shadow-[0_1px_2px_0_rgb(0_0_0/0.03)] sm:flex-row sm:items-center"
+        className="surface flex flex-col gap-2 p-3 sm:flex-row sm:items-center"
       >
         <div className="relative flex-1">
           <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
@@ -105,10 +106,11 @@ export default async function ActividadPage({
             className="pl-8"
           />
         </div>
-        <select
+        <FormSelect
           name="action"
           defaultValue={action ?? ""}
-          className="h-9 rounded-md border border-input bg-transparent px-3 text-sm shadow-xs outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+          aria-label="Filtrar por tipo de acción"
+          className="sm:w-56"
         >
           <option value="">Todas las acciones</option>
           {ACTIVITY_FILTER_OPTIONS.map((o) => (
@@ -116,7 +118,7 @@ export default async function ActividadPage({
               {o.label}
             </option>
           ))}
-        </select>
+        </FormSelect>
         <div className="flex gap-2">
           <Button type="submit" size="sm">
             Filtrar
@@ -137,7 +139,7 @@ export default async function ActividadPage({
       </div>
 
       {rows.length === 0 ? (
-        <div className="rounded-lg border bg-white shadow-[0_1px_2px_0_rgb(0_0_0/0.03)]">
+        <div className="surface">
           <EmptyState
             icon={<History />}
             title="Sin actividad"
@@ -157,7 +159,7 @@ export default async function ActividadPage({
             return (
               <li
                 key={ev.id}
-                className="flex gap-3 rounded-lg border bg-white p-3 shadow-[0_1px_2px_0_rgb(0_0_0/0.03)]"
+                className="surface flex gap-3 p-3"
               >
                 <span
                   className={cn(

@@ -71,7 +71,7 @@ export default async function EditarProveedorPage({
         </h1>
         <p className="text-sm text-muted-foreground">{supplier.nombre}</p>
       </div>
-      <div className="rounded-lg border bg-white p-6">
+      <div className="surface p-6">
         <SupplierForm
           action={updateSupplier}
           supplier={{

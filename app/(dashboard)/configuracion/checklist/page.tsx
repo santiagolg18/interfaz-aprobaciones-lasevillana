@@ -18,6 +18,7 @@ import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/empty-state";
 import { PageHeader } from "@/components/page-header";
 import { FlashToast } from "@/components/flash-toast";
+import { InfoBanner } from "@/components/info-banner";
 import { createClient } from "@/lib/supabase/server";
 import { requireStaff } from "@/lib/auth/current-user";
 import {
@@ -64,13 +65,13 @@ export default async function ChecklistConfigPage() {
       />
 
       {error ? (
-        <div className="rounded-md border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
+        <InfoBanner tone="error">
           {error.message}
-        </div>
+        </InfoBanner>
       ) : null}
 
       {/* Agregar punto */}
-      <div className="rounded-lg border bg-white p-4 shadow-[0_1px_2px_0_rgb(0_0_0/0.03)]">
+      <div className="surface p-4">
         <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-neutral-900">
           <Plus className="size-4" />
           Agregar punto
@@ -114,7 +115,7 @@ export default async function ChecklistConfigPage() {
       </div>
 
       {rows.length === 0 ? (
-        <div className="rounded-lg border bg-white shadow-[0_1px_2px_0_rgb(0_0_0/0.03)]">
+        <div className="surface">
           <EmptyState
             icon={<ListChecks />}
             title="Sin puntos de verificación"
@@ -126,7 +127,7 @@ export default async function ChecklistConfigPage() {
           {rows.map((it, index) => (
             <li
               key={it.id}
-              className={`rounded-lg border p-4 shadow-[0_1px_2px_0_rgb(0_0_0/0.03)] ${
+              className={`surface p-4 ${
                 it.is_active ? "bg-white" : "bg-neutral-50"
               }`}
             >

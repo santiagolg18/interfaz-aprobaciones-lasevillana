@@ -13,6 +13,7 @@ import { PageHeader } from "@/components/page-header";
 import { Pagination } from "@/components/pagination";
 import { Button } from "@/components/ui/button";
 import type { InvoiceNote } from "@/components/invoice-notes-popover";
+import { InfoBanner } from "@/components/info-banner";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/auth/current-user";
 import { getSignedStorageUrl } from "@/lib/supabase/storage";
@@ -347,14 +348,14 @@ export default async function FacturasPage({
 
       <InvoiceTabs counts={counts} activeTab={activeTab} searchParams={sp} />
 
-      <div className="rounded-lg border bg-white p-4 shadow-[0_1px_2px_0_rgb(0_0_0/0.03)]">
+      <div className="surface p-4">
         <InvoiceFilters suppliers={suppliers ?? []} />
       </div>
 
       {error ? (
-        <div className="rounded-md border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
+        <InfoBanner tone="error">
           Error al cargar facturas: {error.message}
-        </div>
+        </InfoBanner>
       ) : null}
 
       <div className="space-y-2">
@@ -409,7 +410,7 @@ export default async function FacturasPage({
       </div>
 
       {totalCount === 0 ? (
-        <div className="rounded-lg border bg-white shadow-[0_1px_2px_0_rgb(0_0_0/0.03)]">
+        <div className="surface">
           <EmptyState
             icon={<Receipt />}
             title={`No hay facturas en “${def.label}”`}

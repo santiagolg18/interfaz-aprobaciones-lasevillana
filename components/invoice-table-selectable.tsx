@@ -197,7 +197,7 @@ export function InvoiceTableSelectable({
           <li
             key={inv.id}
             className={cn(
-              "relative rounded-xl border bg-white p-4 shadow-[0_1px_2px_0_rgb(0_0_0/0.03)]",
+              "relative surface p-4",
               selected.has(inv.id) && "ring-1 ring-primary/40",
             )}
           >
@@ -278,7 +278,7 @@ export function InvoiceTableSelectable({
       </ul>
 
       {/* Desktop: table */}
-      <div className="hidden md:block rounded-lg border bg-white overflow-hidden shadow-[0_1px_2px_0_rgb(0_0_0/0.03)]">
+      <div className="surface hidden md:block overflow-hidden">
         <Table>
           <TableHeader>
             <TableRow>

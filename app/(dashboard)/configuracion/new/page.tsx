@@ -25,7 +25,7 @@ export default async function NuevoUsuarioPage({
         description="Crea una cuenta para que pueda iniciar sesión en la app."
       />
 
-      <div className="rounded-lg border bg-white p-5 shadow-[0_1px_2px_0_rgb(0_0_0/0.03)]">
+      <div className="surface p-5">
         <UserConfigForm action={createUserWithAuth} error={error} />
       </div>
     </div>

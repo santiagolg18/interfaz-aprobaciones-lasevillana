@@ -77,7 +77,7 @@ export default async function ReportesPage({
       {/* Filtro de fecha */}
       <form
         method="get"
-        className="rounded-lg border bg-white p-4 grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end shadow-[0_1px_2px_0_rgb(0_0_0/0.03)]"
+        className="surface p-4 grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end"
       >
         <div className="space-y-1.5">
           <Label htmlFor="from" className="text-sm font-medium">
@@ -123,7 +123,7 @@ export default async function ReportesPage({
         {reports.map((r) => (
           <div
             key={r.id}
-            className="flex flex-col gap-4 rounded-lg border bg-white p-5 shadow-[0_1px_2px_0_rgb(0_0_0/0.03)]"
+            className="surface flex flex-col gap-4 p-5"
           >
             <div
               className={`flex size-10 items-center justify-center rounded-md ring-1 ring-inset ${r.tint}`}
@@ -150,7 +150,7 @@ export default async function ReportesPage({
         ))}
       </div>
 
-      <div className="rounded-lg border bg-white p-4 text-sm text-muted-foreground shadow-[0_1px_2px_0_rgb(0_0_0/0.03)]">
+      <div className="surface p-4 text-sm text-muted-foreground">
         <p className="mb-2 text-sm font-semibold text-neutral-900">
           Notas para contabilidad
         </p>

@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { useMemo, useState } from "react";
 import { ClipboardCheck, Send, AlertTriangle, Check, X, Users } from "lucide-react";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { StatusBadge } from "@/components/status-badge";
 import { SubmitButton } from "@/components/submit-button";
 import {
@@ -82,7 +83,7 @@ export function PurchaseReviewPanel({
   if (!editable) {
     // Modo lectura (auditoría): la factura ya fue liberada o cerrada.
     return (
-      <div className="rounded-lg border bg-white overflow-hidden shadow-[0_1px_2px_0_rgb(0_0_0/0.03)]">
+      <div className="surface overflow-hidden">
         <div className="flex items-center gap-2 px-4 py-3 border-b">
           <ClipboardCheck className="size-4 text-muted-foreground" />
           <h2 className="text-sm font-semibold text-neutral-900">
@@ -128,7 +129,7 @@ export function PurchaseReviewPanel({
 
   return (
     <div
-      className={`rounded-lg border overflow-hidden shadow-[0_1px_2px_0_rgb(0_0_0/0.03)] ${
+      className={`surface overflow-hidden ${
         status === "review_rejected"
           ? "border-orange-200 bg-orange-50/40"
           : "border-sky-200 bg-sky-50/30"
@@ -204,13 +205,13 @@ export function PurchaseReviewPanel({
         {/* Observaciones */}
         <div className="space-y-1.5">
           <Label htmlFor="review_notes">Observaciones</Label>
-          <textarea
+          <Textarea
             id="review_notes"
             name="review_notes"
             rows={3}
             defaultValue={reviewNotes ?? ""}
             placeholder="Notas de la revisión, hallazgos o aclaraciones…"
-            className="flex w-full rounded-md border border-input bg-white px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-2 focus-visible:ring-ring/50 resize-y"
+            className="bg-white resize-y"
           />
         </div>
 

@@ -274,7 +274,7 @@ export async function InvoiceDetail({
         </div>
       ) : null}
 
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-lg border bg-white px-4 py-3 shadow-[0_1px_2px_0_rgb(0_0_0/0.03)]">
+      <div className="surface flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3">
         <StatusBadge status={invoice.status} size="md" />
         <div className="flex min-w-0 items-center gap-2 text-sm">
           <span className="text-muted-foreground">Aprobaciones</span>
@@ -338,7 +338,7 @@ export async function InvoiceDetail({
             canManagePO={canManagePO}
           />
 
-          <div className="rounded-lg border bg-white overflow-hidden shadow-[0_1px_2px_0_rgb(0_0_0/0.03)]">
+          <div className="surface overflow-hidden">
             <div className="flex items-center justify-between gap-2 px-4 py-3 border-b">
               <div className="flex min-w-0 items-center gap-2">
                 <h2 className="truncate text-sm font-semibold text-neutral-900">
@@ -535,7 +535,7 @@ export async function InvoiceDetail({
 
           {myApproval && myApproval.status !== "pending" ? (
             <div
-              className={`rounded-lg border p-4 shadow-[0_1px_2px_0_rgb(0_0_0/0.03)] ${
+              className={`surface p-4 ${
                 myApproval.status === "approved"
                   ? "border-emerald-200 bg-emerald-50"
                   : "border-rose-200 bg-rose-50"
@@ -574,7 +574,7 @@ export async function InvoiceDetail({
             </div>
           ) : null}
 
-          <div className="rounded-lg border bg-white shadow-[0_1px_2px_0_rgb(0_0_0/0.03)]">
+          <div className="surface">
             <div className="px-4 py-3 border-b">
               <h2 className="text-sm font-semibold text-neutral-900">
                 Datos de la factura
@@ -623,7 +623,7 @@ export async function InvoiceDetail({
           </div>
 
           {invoice.description ? (
-            <div className="rounded-lg border bg-white p-4 shadow-[0_1px_2px_0_rgb(0_0_0/0.03)]">
+            <div className="surface p-4">
               <h2 className="text-sm font-semibold mb-2 text-neutral-900">
                 Descripción
               </h2>

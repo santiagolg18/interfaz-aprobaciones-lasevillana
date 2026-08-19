@@ -96,7 +96,7 @@ export function InlineApprovalActions({
           </Button>
           <Button
             type="button"
-            className="h-12 bg-[#16a34a] text-base font-medium text-white hover:bg-[#15803d]"
+            className="h-12 bg-emerald-600 text-base font-medium text-white hover:bg-emerald-700"
             onClick={open("approve")}
           >
             <Check className="size-5" />
@@ -161,7 +161,7 @@ export function InlineApprovalActions({
               {isApprove ? (
                 <SubmitButton
                   pendingLabel="Aprobando…"
-                  className="bg-[#16a34a] hover:bg-[#15803d] text-white"
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white"
                 >
                   <Check className="size-4" />
                   Confirmar aprobación

@@ -16,6 +16,8 @@ import { Pagination } from "@/components/pagination";
 import { DeleteSupplierButton } from "@/components/delete-supplier-button";
 import { EmptyState } from "@/components/empty-state";
 import { PageHeader } from "@/components/page-header";
+import { StatCard } from "@/components/stat-card";
+import { InfoBanner } from "@/components/info-banner";
 import { createClient } from "@/lib/supabase/server";
 import { requireStaff } from "@/lib/auth/current-user";
 import { sanitizeSearchTerm } from "@/lib/search";
@@ -200,7 +202,7 @@ export default async function ProveedoresPage({
         />
       </div>
 
-      <div className="rounded-lg border bg-white p-4 space-y-3 shadow-[0_1px_2px_0_rgb(0_0_0/0.03)]">
+      <div className="surface p-4 space-y-3">
         {approverFilter ? (
           <div className="flex flex-wrap items-center gap-2 rounded-md border border-primary/20 bg-primary/5 px-3 py-2 text-sm">
             <Users className="size-4 text-primary" />
@@ -221,13 +223,13 @@ export default async function ProveedoresPage({
       </div>
 
       {error ? (
-        <div className="rounded-md border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
+        <InfoBanner tone="error">
           {error.message}
-        </div>
+        </InfoBanner>
       ) : null}
 
       {filtered.length === 0 ? (
-        <div className="rounded-lg border bg-white shadow-[0_1px_2px_0_rgb(0_0_0/0.03)]">
+        <div className="surface">
           <EmptyState
             icon={<Building2 />}
             title={hasFilters ? "Sin resultados" : "Aún no hay proveedores"}
@@ -260,7 +262,7 @@ export default async function ProveedoresPage({
               return (
                 <li
                   key={s.id}
-                  className="rounded-lg border bg-white p-4 shadow-[0_1px_2px_0_rgb(0_0_0/0.03)]"
+                  className="surface p-4"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <Link
@@ -337,7 +339,7 @@ export default async function ProveedoresPage({
           </ul>
 
           {/* Desktop: table */}
-          <div className="hidden md:block rounded-lg border bg-white overflow-hidden shadow-[0_1px_2px_0_rgb(0_0_0/0.03)]">
+          <div className="surface hidden md:block overflow-hidden">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -434,7 +436,7 @@ export default async function ProveedoresPage({
         </>
       )}
 
-      <div className="rounded-lg border bg-white shadow-[0_1px_2px_0_rgb(0_0_0/0.03)]">
+      <div className="surface">
         <Pagination
           basePath="/proveedores"
           page={page}
@@ -447,55 +449,6 @@ export default async function ProveedoresPage({
             approver: approverId || undefined,
           }}
         />
-      </div>
-    </div>
-  );
-}
-
-function StatCard({
-  icon,
-  label,
-  value,
-  hint,
-  tone = "default",
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value: number;
-  hint?: string;
-  tone?: "default" | "warning";
-}) {
-  const toneClass =
-    tone === "warning"
-      ? "border-amber-200 bg-amber-50"
-      : "border-neutral-200 bg-white";
-  const iconClass =
-    tone === "warning"
-      ? "bg-amber-100 text-amber-700"
-      : "bg-neutral-100 text-neutral-600";
-  return (
-    <div
-      className={`rounded-lg border p-4 shadow-[0_1px_2px_0_rgb(0_0_0/0.03)] ${toneClass}`}
-    >
-      <div className="flex items-center justify-between">
-        <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-          {label}
-        </p>
-        <span
-          className={`flex size-8 items-center justify-center rounded-md ${iconClass}`}
-        >
-          {icon}
-        </span>
-      </div>
-      <div className="mt-3 flex items-baseline gap-2">
-        <p className="text-2xl font-semibold tabular-nums text-neutral-900">
-          {value.toLocaleString("es-CO")}
-        </p>
-        {hint && (
-          <span className="text-xs text-muted-foreground tabular-nums">
-            {hint}
-          </span>
-        )}
       </div>
     </div>
   );

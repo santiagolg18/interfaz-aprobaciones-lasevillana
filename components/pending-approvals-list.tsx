@@ -263,7 +263,7 @@ export function PendingApprovalsList({ rows }: { rows: PendingRow[] }) {
       </div>
 
       {filtered.length === 0 ? (
-        <div className="rounded-lg border bg-white shadow-[0_1px_2px_0_rgb(0_0_0/0.03)]">
+        <div className="surface">
           <EmptyState
             icon={<Inbox />}
             title={
@@ -286,7 +286,7 @@ export function PendingApprovalsList({ rows }: { rows: PendingRow[] }) {
               const inv = r.invoice;
               return (
                 <li key={r.approvalId}>
-                  <div className="block rounded-xl border bg-white p-4 shadow-[0_1px_2px_0_rgb(0_0_0/0.03)]">
+                  <div className="surface block p-4">
                     <Link
                       href={`/facturas/${inv.id}`}
                       className="block rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
@@ -327,7 +327,7 @@ export function PendingApprovalsList({ rows }: { rows: PendingRow[] }) {
           </ul>
 
           {/* Desktop: table */}
-          <div className="hidden md:block rounded-lg border bg-white overflow-hidden shadow-[0_1px_2px_0_rgb(0_0_0/0.03)]">
+          <div className="surface hidden md:block overflow-hidden">
             <Table>
               <TableHeader>
                 <TableRow>

@@ -65,7 +65,7 @@ export default async function ConfiguracionPage() {
       ) : null}
 
       {(users ?? []).length === 0 ? (
-        <div className="rounded-lg border bg-white shadow-[0_1px_2px_0_rgb(0_0_0/0.03)]">
+        <div className="surface">
           <EmptyState
             icon={<UserCog />}
             title="Aún no hay usuarios"
@@ -87,7 +87,7 @@ export default async function ConfiguracionPage() {
             {(users ?? []).map((u) => (
               <li
                 key={u.id}
-                className="rounded-lg border bg-white p-4 shadow-[0_1px_2px_0_rgb(0_0_0/0.03)]"
+                className="surface p-4"
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-center gap-3 min-w-0 flex-1">
@@ -115,9 +115,7 @@ export default async function ConfiguracionPage() {
                     {u.is_active ? (
                       <StatusBadge status="approved" />
                     ) : (
-                      <span className="inline-flex items-center rounded-full bg-neutral-100 px-2.5 py-0.5 text-xs font-medium text-neutral-700 ring-1 ring-inset ring-neutral-200">
-                        Inactivo
-                      </span>
+                      <Badge variant="outline" className="border-neutral-200 bg-neutral-100 text-neutral-600">Inactivo</Badge>
                     )}
                     {u.auth_user_id ? (
                       <Badge variant="secondary">Con cuenta</Badge>
@@ -167,7 +165,7 @@ export default async function ConfiguracionPage() {
           </ul>
 
           {/* Desktop: table */}
-          <div className="hidden md:block rounded-lg border bg-white overflow-hidden shadow-[0_1px_2px_0_rgb(0_0_0/0.03)]">
+          <div className="surface hidden md:block overflow-hidden">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -207,9 +205,7 @@ export default async function ConfiguracionPage() {
                       {u.is_active ? (
                         <StatusBadge status="approved" />
                       ) : (
-                        <span className="inline-flex items-center rounded-full bg-neutral-100 px-2.5 py-0.5 text-xs font-medium text-neutral-700 ring-1 ring-inset ring-neutral-200">
-                          Inactivo
-                        </span>
+                        <Badge variant="outline" className="border-neutral-200 bg-neutral-100 text-neutral-600">Inactivo</Badge>
                       )}
                     </TableCell>
                     <TableCell>

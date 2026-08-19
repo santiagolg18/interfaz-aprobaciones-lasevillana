@@ -13,7 +13,7 @@ export function PageSkeleton({ rows = 8 }: { rows?: number }) {
         <Skeleton className="h-10 w-full max-w-sm" />
         <Skeleton className="h-10 w-32" />
       </div>
-      <div className="space-y-3 rounded-lg border bg-white p-4 shadow-[0_1px_2px_0_rgb(0_0_0/0.03)]">
+      <div className="surface space-y-3 p-4">
         {Array.from({ length: rows }).map((_, i) => (
           <Skeleton key={i} className="h-10 w-full" />
         ))}
