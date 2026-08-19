@@ -193,11 +193,16 @@ export function SupplierForm({
         <div className="space-y-2">
           <Label>Modo de aprobación</Label>
           <input type="hidden" name="approval_mode" value={mode} />
-          <div className="grid gap-2 sm:grid-cols-2">
+          <div
+            role="radiogroup"
+            aria-label="Modo de aprobación"
+            className="grid gap-2 sm:grid-cols-2"
+          >
             <button
               type="button"
+              role="radio"
+              aria-checked={mode === "parallel"}
               onClick={() => setMode("parallel")}
-              aria-pressed={mode === "parallel"}
               className={cn(
                 "flex items-start gap-2.5 rounded-md border p-3 text-left transition-colors",
                 mode === "parallel"
@@ -215,8 +220,9 @@ export function SupplierForm({
             </button>
             <button
               type="button"
+              role="radio"
+              aria-checked={mode === "sequential"}
               onClick={() => setMode("sequential")}
-              aria-pressed={mode === "sequential"}
               className={cn(
                 "flex items-start gap-2.5 rounded-md border p-3 text-left transition-colors",
                 mode === "sequential"

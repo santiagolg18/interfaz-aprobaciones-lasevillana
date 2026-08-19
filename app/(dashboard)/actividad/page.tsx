@@ -102,6 +102,7 @@ export default async function ActividadPage({
           <Input
             name="q"
             defaultValue={q ?? ""}
+            aria-label="Buscar en la actividad"
             placeholder="Buscar por factura, proveedor o responsable"
             className="pl-8"
           />

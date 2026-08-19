@@ -163,6 +163,7 @@ export function PendingApprovalsList({ rows }: { rows: PendingRow[] }) {
                       type="number"
                       inputMode="numeric"
                       placeholder="Mín."
+                      aria-label="Monto mínimo"
                       className="pl-5 sm:h-9"
                       value={minAmount}
                       onChange={(e) => setMinAmount(e.target.value)}
@@ -176,6 +177,7 @@ export function PendingApprovalsList({ rows }: { rows: PendingRow[] }) {
                       type="number"
                       inputMode="numeric"
                       placeholder="Máx."
+                      aria-label="Monto máximo"
                       className="pl-5 sm:h-9"
                       value={maxAmount}
                       onChange={(e) => setMaxAmount(e.target.value)}

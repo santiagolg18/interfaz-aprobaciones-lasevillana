@@ -159,7 +159,11 @@ export function ConfigureApproversDialog({
             {/* Modo de aprobación */}
             <div className="space-y-2">
               <Label>Modo de aprobación</Label>
-              <div className="grid gap-2 sm:grid-cols-2">
+              <div
+                role="radiogroup"
+                aria-label="Modo de aprobación"
+                className="grid gap-2 sm:grid-cols-2"
+              >
                 {[
                   {
                     value: "parallel" as const,
@@ -175,8 +179,9 @@ export function ConfigureApproversDialog({
                   <button
                     key={opt.value}
                     type="button"
+                    role="radio"
+                    aria-checked={mode === opt.value}
                     onClick={() => setMode(opt.value)}
-                    aria-pressed={mode === opt.value}
                     className={
                       "rounded-md border p-3 text-left transition-colors " +
                       (mode === opt.value

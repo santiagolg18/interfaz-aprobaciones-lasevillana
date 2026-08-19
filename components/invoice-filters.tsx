@@ -132,7 +132,7 @@ export function InvoiceFilters({ suppliers }: { suppliers: Supplier[] }) {
             value={sp.get("supplier_id") ?? ALL}
             onValueChange={(v) => setParam("supplier_id", v)}
           >
-            <SelectTrigger>
+            <SelectTrigger aria-label="Filtrar por proveedor">
               <SelectValue placeholder="Todos" />
             </SelectTrigger>
             <SelectContent>
@@ -147,8 +147,9 @@ export function InvoiceFilters({ suppliers }: { suppliers: Supplier[] }) {
         </div>
 
         <div className="space-y-1.5">
-          <Label className="text-sm font-medium">Desde</Label>
+          <Label htmlFor="filtro-desde" className="text-sm font-medium">Desde</Label>
           <Input
+            id="filtro-desde"
             type="date"
             value={fromVal}
             onChange={(e) => {
@@ -159,8 +160,9 @@ export function InvoiceFilters({ suppliers }: { suppliers: Supplier[] }) {
         </div>
 
         <div className="space-y-1.5">
-          <Label className="text-sm font-medium">Hasta</Label>
+          <Label htmlFor="filtro-hasta" className="text-sm font-medium">Hasta</Label>
           <Input
+            id="filtro-hasta"
             type="date"
             value={toVal}
             onChange={(e) => {
@@ -202,7 +204,7 @@ export function InvoiceFilters({ suppliers }: { suppliers: Supplier[] }) {
       {showAdvanced ? (
         <div className="grid gap-3 grid-cols-1 min-[400px]:grid-cols-2 sm:grid-cols-[1fr_1fr_auto] sm:items-end rounded-lg border border-dashed border-neutral-200 bg-neutral-50/60 p-3">
           <div className="space-y-1.5">
-            <Label className="text-sm font-medium">Monto mínimo</Label>
+            <Label htmlFor="filtro-min" className="text-sm font-medium">Monto mínimo</Label>
             <div className="relative">
               <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
                 $
@@ -210,6 +212,7 @@ export function InvoiceFilters({ suppliers }: { suppliers: Supplier[] }) {
               <Input
                 type="number"
                 inputMode="numeric"
+                id="filtro-min"
                 placeholder="0"
                 className="pl-6"
                 value={minVal}
@@ -218,7 +221,7 @@ export function InvoiceFilters({ suppliers }: { suppliers: Supplier[] }) {
             </div>
           </div>
           <div className="space-y-1.5">
-            <Label className="text-sm font-medium">Monto máximo</Label>
+            <Label htmlFor="filtro-max" className="text-sm font-medium">Monto máximo</Label>
             <div className="relative">
               <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
                 $
@@ -226,6 +229,7 @@ export function InvoiceFilters({ suppliers }: { suppliers: Supplier[] }) {
               <Input
                 type="number"
                 inputMode="numeric"
+                id="filtro-max"
                 placeholder="Sin límite"
                 className="pl-6"
                 value={maxVal}

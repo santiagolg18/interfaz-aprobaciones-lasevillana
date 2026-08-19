@@ -90,7 +90,7 @@ export function SupplierFilters() {
           value={sp.get("tipo") ?? ALL}
           onValueChange={(v) => setParam("tipo", v)}
         >
-          <SelectTrigger>
+          <SelectTrigger aria-label="Filtrar por tipo">
             <SelectValue placeholder="Todos" />
           </SelectTrigger>
           <SelectContent>
@@ -107,7 +107,7 @@ export function SupplierFilters() {
           value={sp.get("approvers") ?? ALL}
           onValueChange={(v) => setParam("approvers", v)}
         >
-          <SelectTrigger>
+          <SelectTrigger aria-label="Filtrar por aprobadores">
             <SelectValue placeholder="Todos" />
           </SelectTrigger>
           <SelectContent>

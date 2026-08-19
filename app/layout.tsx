@@ -28,12 +28,6 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="es" className="h-full antialiased">
-      <head>
-        <link
-          rel="stylesheet"
-          href="https://fonts.cdnfonts.com/css/segoe-ui-4"
-        />
-      </head>
       <body className="min-h-[100dvh] bg-neutral-50 text-neutral-900">
         {children}
         <Toaster richColors />

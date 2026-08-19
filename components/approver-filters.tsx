@@ -88,7 +88,7 @@ export function ApproverFilters() {
           value={sp.get("estado") ?? ALL}
           onValueChange={(v) => setParam("estado", v)}
         >
-          <SelectTrigger>
+          <SelectTrigger aria-label="Filtrar por estado">
             <SelectValue placeholder="Todos" />
           </SelectTrigger>
           <SelectContent>
@@ -105,7 +105,7 @@ export function ApproverFilters() {
           value={sp.get("asignacion") ?? ALL}
           onValueChange={(v) => setParam("asignacion", v)}
         >
-          <SelectTrigger>
+          <SelectTrigger aria-label="Filtrar por proveedores asignados">
             <SelectValue placeholder="Todos" />
           </SelectTrigger>
           <SelectContent>

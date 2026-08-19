@@ -234,7 +234,7 @@ export async function InvoiceDetail({
             <div className="text-sm font-semibold text-amber-900">
               Posible factura duplicada
             </div>
-            <p className="mt-0.5 text-xs text-amber-800/90">
+            <p className="mt-0.5 text-xs text-amber-800">
               Hay {duplicates.length} factura
               {duplicates.length === 1 ? "" : "s"} con el mismo número y NIT:
             </p>
@@ -247,7 +247,7 @@ export async function InvoiceDetail({
                   >
                     {d.invoice_number}
                   </Link>{" "}
-                  <span className="text-amber-800/80">
+                  <span className="text-amber-800">
                     · {formatDate(d.received_at)} ·{" "}
                   </span>
                   <StatusBadge status={d.status} />
@@ -267,7 +267,7 @@ export async function InvoiceDetail({
             <div className="text-sm font-semibold text-amber-900">
               Tu aprobación está pendiente
             </div>
-            <div className="text-xs text-amber-800/80 mt-0.5">
+            <div className="text-xs text-amber-800 mt-0.5">
               Revisa los documentos y decide con los botones de abajo.
             </div>
           </div>

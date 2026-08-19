@@ -38,7 +38,11 @@ export function ApprovalProgress({
   return (
     <div
       className={cn("inline-flex items-center gap-2 tabular-nums", className)}
+      role="progressbar"
       aria-label={`Aprobaciones: ${safeCurrent} de ${safeRequired}`}
+      aria-valuenow={safeCurrent}
+      aria-valuemin={0}
+      aria-valuemax={safeRequired}
     >
       <div
         className={cn(
