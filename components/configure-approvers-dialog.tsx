@@ -229,7 +229,7 @@ export function ConfigureApproversDialog({
                 ) : null}
               </div>
               {hasApprovers ? (
-                <div className="grid gap-2 max-h-56 overflow-y-auto pr-1">
+                <div className="grid gap-2 sm:max-h-56 sm:overflow-y-auto sm:pr-1">
                   {approvers.map((a) => {
                     const checked = selected.includes(a.id);
                     const assignment = assignmentByApproverId.get(a.id);
@@ -325,7 +325,7 @@ export function ConfigureApproversDialog({
                             type="button"
                             size="icon"
                             variant="ghost"
-                            className="size-7"
+                            className="size-11 sm:size-7"
                             disabled={!canMoveUp}
                             onClick={() => move(id, -1)}
                             aria-label="Subir"
@@ -336,7 +336,7 @@ export function ConfigureApproversDialog({
                             type="button"
                             size="icon"
                             variant="ghost"
-                            className="size-7"
+                            className="size-11 sm:size-7"
                             disabled={!canMoveDown}
                             onClick={() => move(id, 1)}
                             aria-label="Bajar"

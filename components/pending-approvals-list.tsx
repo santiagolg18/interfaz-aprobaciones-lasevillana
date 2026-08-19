@@ -118,9 +118,9 @@ export function PendingApprovalsList({ rows }: { rows: PendingRow[] }) {
         ariaLabel="Buscar mis aprobaciones"
       />
 
-      <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center sm:justify-end">
+      <div className="grid grid-cols-1 gap-2 min-[400px]:grid-cols-2 sm:flex sm:items-center sm:justify-end">
         <Select value={sort} onValueChange={(v) => setSort((v ?? "recent") as SortValue)}>
-          <SelectTrigger className="h-11 w-full sm:h-9 sm:w-44" aria-label="Ordenar">
+          <SelectTrigger className="sm:h-9 sm:w-44" aria-label="Ordenar">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -163,7 +163,7 @@ export function PendingApprovalsList({ rows }: { rows: PendingRow[] }) {
                       type="number"
                       inputMode="numeric"
                       placeholder="Mín."
-                      className="h-11 pl-5 sm:h-9"
+                      className="pl-5 sm:h-9"
                       value={minAmount}
                       onChange={(e) => setMinAmount(e.target.value)}
                     />
@@ -176,7 +176,7 @@ export function PendingApprovalsList({ rows }: { rows: PendingRow[] }) {
                       type="number"
                       inputMode="numeric"
                       placeholder="Máx."
-                      className="h-11 pl-5 sm:h-9"
+                      className="pl-5 sm:h-9"
                       value={maxAmount}
                       onChange={(e) => setMaxAmount(e.target.value)}
                     />

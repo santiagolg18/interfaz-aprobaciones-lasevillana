@@ -109,7 +109,7 @@ export function InvoiceTableSelectable({
     <div className="space-y-2">
       {/* Barra de acciones masivas */}
       {canManage && someSelected ? (
-        <div className="sticky top-2 z-20 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-primary/20 bg-primary/5 px-4 py-2.5 shadow-[0_1px_2px_0_rgb(0_0_0/0.04)]">
+        <div className="sticky top-[calc(3.5rem+env(safe-area-inset-top)+0.5rem)] lg:top-2 z-30 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-primary/20 bg-[#eff4fc] px-4 py-2.5 shadow-[0_1px_2px_0_rgb(0_0_0/0.04)]">
           <span className="text-sm font-medium text-primary">
             {selected.size} seleccionada{selected.size === 1 ? "" : "s"}
           </span>

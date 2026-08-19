@@ -179,7 +179,7 @@ export function NewInvoiceForm({
                 className="pl-8"
               />
               {filteredSuggestions.length > 0 ? (
-                <ul className="absolute z-10 mt-1 max-h-56 w-full overflow-auto rounded-md border bg-white shadow-md">
+                <ul className="absolute z-30 mt-1 max-h-56 w-full overflow-auto rounded-md border bg-white shadow-lg">
                   {filteredSuggestions.map((s) => (
                     <li key={s.id}>
                       <button
@@ -376,7 +376,7 @@ export function NewInvoiceForm({
         </div>
 
         {approvers.length > 0 ? (
-          <div className="grid gap-2 max-h-72 overflow-y-auto pr-1">
+          <div className="grid gap-2 sm:max-h-72 sm:overflow-y-auto sm:pr-1">
             {approvers.map((a) => {
               const checked = selected.has(a.id);
               return (

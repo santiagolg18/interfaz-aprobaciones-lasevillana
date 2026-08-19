@@ -130,7 +130,7 @@ export default async function ChecklistConfigPage() {
                 it.is_active ? "bg-white" : "bg-neutral-50"
               }`}
             >
-              <div className="flex items-start justify-between gap-3">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="font-medium text-neutral-900">
@@ -159,7 +159,7 @@ export default async function ChecklistConfigPage() {
                   ) : null}
                 </div>
 
-                <div className="flex shrink-0 items-center gap-1">
+                <div className="flex shrink-0 items-center gap-1 self-end sm:self-auto">
                   <form action={moveChecklistItem}>
                     <input type="hidden" name="id" value={it.id} />
                     <input type="hidden" name="dir" value="up" />

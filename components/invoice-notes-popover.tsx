@@ -30,7 +30,7 @@ export function InvoiceNotesPopover({ notes }: { notes: InvoiceNote[] }) {
         <PopoverTrigger
           aria-label={label}
           onClick={(e) => e.stopPropagation()}
-          className="inline-flex size-7 items-center justify-center rounded-md text-amber-500 hover:bg-amber-50 hover:text-amber-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
+          className="inline-flex size-10 sm:size-7 items-center justify-center rounded-md text-amber-500 hover:bg-amber-50 hover:text-amber-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
         >
           <MessageSquare className="size-4" />
         </PopoverTrigger>

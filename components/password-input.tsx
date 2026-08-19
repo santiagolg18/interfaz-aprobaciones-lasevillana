@@ -30,14 +30,14 @@ export function PasswordInput({
         autoComplete={autoComplete}
         required={required}
         placeholder={placeholder}
-        className="pr-9"
+        className="pr-11 sm:pr-9"
       />
       <button
         type="button"
         onClick={() => setVisible((v) => !v)}
         aria-label={visible ? "Ocultar contraseña" : "Mostrar contraseña"}
         aria-pressed={visible}
-        className="absolute inset-y-0 right-0 flex w-9 items-center justify-center rounded-r-lg text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:text-foreground"
+        className="absolute inset-y-0 right-0 flex w-11 sm:w-9 items-center justify-center rounded-r-lg text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:text-foreground"
       >
         {visible ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
       </button>

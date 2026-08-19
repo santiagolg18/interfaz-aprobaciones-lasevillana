@@ -38,8 +38,8 @@ export function HistoryFilters() {
     sp.get("history_status") || sp.get("history_from") || sp.get("history_to");
 
   return (
-    <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-[160px_160px_160px_auto] sm:items-end rounded-lg border border-dashed border-neutral-200 bg-neutral-50/60 p-3">
-      <div className="col-span-2 space-y-1.5 sm:col-span-1">
+    <div className="grid grid-cols-1 gap-2.5 min-[400px]:grid-cols-2 sm:grid-cols-[160px_160px_160px_auto] sm:items-end rounded-lg border border-dashed border-neutral-200 bg-neutral-50/60 p-3">
+      <div className="min-[400px]:col-span-2 space-y-1.5 sm:col-span-1">
         <Label className="text-xs font-medium text-muted-foreground">
           Decisión
         </Label>
@@ -47,7 +47,7 @@ export function HistoryFilters() {
           value={sp.get("history_status") ?? ALL}
           onValueChange={(v) => setParam("history_status", v)}
         >
-          <SelectTrigger className="h-11 w-full sm:h-9">
+          <SelectTrigger>
             <SelectValue placeholder="Todas" />
           </SelectTrigger>
           <SelectContent>
@@ -64,7 +64,6 @@ export function HistoryFilters() {
         </Label>
         <Input
           type="date"
-          className="h-11 sm:h-8"
           defaultValue={sp.get("history_from") ?? ""}
           onChange={(e) => setParam("history_from", e.target.value || null)}
         />
@@ -76,7 +75,6 @@ export function HistoryFilters() {
         </Label>
         <Input
           type="date"
-          className="h-11 sm:h-8"
           defaultValue={sp.get("history_to") ?? ""}
           onChange={(e) => setParam("history_to", e.target.value || null)}
         />
@@ -86,7 +84,7 @@ export function HistoryFilters() {
         <Button
           variant="ghost"
           size="sm"
-          className="col-span-2 text-muted-foreground sm:col-span-1"
+          className="min-[400px]:col-span-2 text-muted-foreground sm:col-span-1"
           onClick={() => {
             const params = new URLSearchParams(sp.toString());
             params.delete("history_status");

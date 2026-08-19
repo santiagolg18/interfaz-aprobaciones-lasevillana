@@ -125,14 +125,14 @@ export function InvoiceFilters({ suppliers }: { suppliers: Supplier[] }) {
         ariaLabel="Buscar facturas"
       />
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-[1fr_180px_180px] lg:items-end">
-        <div className="col-span-2 space-y-1.5 lg:col-span-1">
+      <div className="grid grid-cols-1 gap-3 min-[400px]:grid-cols-2 lg:grid-cols-[1fr_180px_180px] lg:items-end">
+        <div className="min-[400px]:col-span-2 space-y-1.5 lg:col-span-1">
           <Label className="text-sm font-medium">Proveedor</Label>
           <Select
             value={sp.get("supplier_id") ?? ALL}
             onValueChange={(v) => setParam("supplier_id", v)}
           >
-            <SelectTrigger className="h-11 w-full sm:h-9">
+            <SelectTrigger>
               <SelectValue placeholder="Todos" />
             </SelectTrigger>
             <SelectContent>
@@ -150,7 +150,6 @@ export function InvoiceFilters({ suppliers }: { suppliers: Supplier[] }) {
           <Label className="text-sm font-medium">Desde</Label>
           <Input
             type="date"
-            className="h-11 sm:h-8"
             value={fromVal}
             onChange={(e) => {
               setFromVal(e.target.value);
@@ -163,7 +162,6 @@ export function InvoiceFilters({ suppliers }: { suppliers: Supplier[] }) {
           <Label className="text-sm font-medium">Hasta</Label>
           <Input
             type="date"
-            className="h-11 sm:h-8"
             value={toVal}
             onChange={(e) => {
               setToVal(e.target.value);
@@ -202,7 +200,7 @@ export function InvoiceFilters({ suppliers }: { suppliers: Supplier[] }) {
       </div>
 
       {showAdvanced ? (
-        <div className="grid gap-3 grid-cols-2 sm:grid-cols-[1fr_1fr_auto] sm:items-end rounded-lg border border-dashed border-neutral-200 bg-neutral-50/60 p-3">
+        <div className="grid gap-3 grid-cols-1 min-[400px]:grid-cols-2 sm:grid-cols-[1fr_1fr_auto] sm:items-end rounded-lg border border-dashed border-neutral-200 bg-neutral-50/60 p-3">
           <div className="space-y-1.5">
             <Label className="text-sm font-medium">Monto mínimo</Label>
             <div className="relative">
@@ -213,7 +211,7 @@ export function InvoiceFilters({ suppliers }: { suppliers: Supplier[] }) {
                 type="number"
                 inputMode="numeric"
                 placeholder="0"
-                className="h-11 pl-6 sm:h-8"
+                className="pl-6"
                 value={minVal}
                 onChange={(e) => debouncedSetMin(e.target.value)}
               />
@@ -229,13 +227,13 @@ export function InvoiceFilters({ suppliers }: { suppliers: Supplier[] }) {
                 type="number"
                 inputMode="numeric"
                 placeholder="Sin límite"
-                className="h-11 pl-6 sm:h-8"
+                className="pl-6"
                 value={maxVal}
                 onChange={(e) => debouncedSetMax(e.target.value)}
               />
             </div>
           </div>
-          <div className="col-span-2 space-y-1.5 sm:col-span-1">
+          <div className="min-[400px]:col-span-2 space-y-1.5 sm:col-span-1">
             <Label className="text-sm font-medium">Orden de compra</Label>
             <div
               role="radiogroup"

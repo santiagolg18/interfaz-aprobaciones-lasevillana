@@ -41,7 +41,7 @@ export function MobileSortSelect({
 
   return (
     <Select value={current} onValueChange={onChange}>
-      <SelectTrigger className="h-10" aria-label="Ordenar por" aria-busy={isPending}>
+      <SelectTrigger aria-label="Ordenar por" aria-busy={isPending}>
         {isPending ? (
           <Loader2 className="size-3.5 animate-spin text-muted-foreground" />
         ) : (
