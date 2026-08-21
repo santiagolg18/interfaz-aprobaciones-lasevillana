@@ -6,6 +6,10 @@ import { Button } from "@/components/ui/button";
 import { PdfViewer } from "@/components/pdf-viewer";
 import { PoDropzone } from "@/components/po-dropzone";
 import { PoFileCard } from "@/components/po-file-card";
+import {
+  InvoiceAttachments,
+  type InvoiceAttachment,
+} from "@/components/invoice-attachments";
 import { cn } from "@/lib/utils";
 
 type Mode = "invoice" | "po" | "compare";
@@ -30,6 +34,8 @@ export function InvoiceDocuments({
   poStoragePath,
   poUploadedAt,
   canManagePO,
+  attachments,
+  canManageAttachments,
 }: {
   invoiceId: string;
   invoiceNumber: string;
@@ -38,6 +44,8 @@ export function InvoiceDocuments({
   poStoragePath: string | null;
   poUploadedAt: string | null;
   canManagePO: boolean;
+  attachments: InvoiceAttachment[];
+  canManageAttachments: boolean;
 }) {
   const isLarge = useIsLargeScreen();
   const hasPO = Boolean(poUrl);
@@ -174,6 +182,12 @@ export function InvoiceDocuments({
           poPane
         )}
       </div>
+
+      <InvoiceAttachments
+        invoiceId={invoiceId}
+        attachments={attachments}
+        canManage={canManageAttachments}
+      />
     </div>
   );
 }

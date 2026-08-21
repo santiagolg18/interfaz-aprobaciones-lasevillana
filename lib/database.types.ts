@@ -200,6 +200,54 @@ export type Database = {
           },
         ]
       }
+      invoice_attachments: {
+        Row: {
+          file_name: string
+          id: string
+          invoice_id: string
+          mime_type: string | null
+          size_bytes: number | null
+          storage_path: string
+          uploaded_at: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          file_name: string
+          id?: string
+          invoice_id: string
+          mime_type?: string | null
+          size_bytes?: number | null
+          storage_path: string
+          uploaded_at?: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          file_name?: string
+          id?: string
+          invoice_id?: string
+          mime_type?: string | null
+          size_bytes?: number | null
+          storage_path?: string
+          uploaded_at?: string
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_attachments_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_attachments_uploaded_by_fkey"
+            columns: ["uploaded_by"]
+            isOneToOne: false
+            referencedRelation: "approvers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       invoices: {
         Row: {
           approval_mode: string

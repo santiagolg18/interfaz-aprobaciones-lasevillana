@@ -4,9 +4,17 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { getCurrentUser, canApproveInvoices } from "@/lib/auth/current-user";
+import {
+  getCurrentUser,
+  canApproveInvoices,
+  requireStaffProfile,
+} from "@/lib/auth/current-user";
 import { logInvoiceActivity } from "@/lib/audit/log-activity";
 import { parseFront } from "@/lib/invoices/business-front";
+import {
+  extensionOf,
+  validateAttachment,
+} from "@/lib/invoices/attachments";
 
 const BUCKET = "invoices";
 const MAX_BYTES = 10 * 1024 * 1024;
@@ -34,6 +42,9 @@ export async function uploadPurchaseOrder(
   invoiceId: string,
   formData: FormData,
 ): Promise<ActionResult> {
+  const staff = await requireStaffProfile();
+  if (!staff.ok) return { error: staff.error };
+
   const file = formData.get("file");
   if (!(file instanceof File) || file.size === 0) {
     return { error: "Selecciona un archivo PDF, JPG o PNG" };
@@ -368,6 +379,9 @@ export async function createManualInvoice(formData: FormData) {
 export async function deletePurchaseOrder(
   invoiceId: string,
 ): Promise<ActionResult> {
+  const staff = await requireStaffProfile();
+  if (!staff.ok) return { error: staff.error };
+
   const supabase = await createClient();
   const { data: invoice, error: fetchError } = await supabase
     .from("invoices")
@@ -395,5 +409,166 @@ export async function deletePurchaseOrder(
 
   revalidatePath(`/facturas/${invoiceId}`);
   revalidatePath("/facturas");
+  return { ok: true };
+}
+
+// ---------------------------------------------------------------------------
+// Soportes: archivos adicionales de la factura.
+//
+// A diferencia de la OC, el archivo NO viaja dentro de la server action: el
+// navegador sube directo a Storage con una URL firmada. Las server actions solo
+// autorizan (antes) y registran (después). Es lo que permite cumplir los 10 MB:
+// el body de una server action está topado en 1 MB por defecto en Next y en
+// 4.5 MB duro en Vercel.
+// ---------------------------------------------------------------------------
+
+const ATTACHMENTS_PREFIX = "soportes";
+
+type UploadTicket =
+  | { ok: true; path: string; token: string }
+  | { ok: false; error: string };
+
+// Prefijo del objeto para una factura: soportes/<NIT>/<numero>/
+function attachmentPrefix(supplierNit: string, invoiceNumber: string): string {
+  const safe = (v: string) => v.replace(/[^\w.\-]+/g, "_");
+  return `${ATTACHMENTS_PREFIX}/${safe(supplierNit)}/${safe(invoiceNumber)}/`;
+}
+
+/**
+ * Paso 1: autoriza la subida y devuelve una URL firmada de Storage.
+ * El objeto se nombra con un UUID opaco; el nombre real del archivo se guarda
+ * en la fila de invoice_attachments.
+ */
+export async function createAttachmentUploadUrl(
+  invoiceId: string,
+  fileName: string,
+  size: number,
+): Promise<UploadTicket> {
+  const staff = await requireStaffProfile();
+  if (!staff.ok) return { ok: false, error: staff.error };
+
+  const invalid = validateAttachment(fileName, size);
+  if (invalid) return { ok: false, error: invalid };
+
+  const supabase = await createClient();
+  const { data: invoice, error: fetchError } = await supabase
+    .from("invoices")
+    .select("supplier_nit, invoice_number")
+    .eq("id", invoiceId)
+    .maybeSingle();
+  if (fetchError) return { ok: false, error: fetchError.message };
+  if (!invoice) return { ok: false, error: "Factura no encontrada" };
+
+  const ext = extensionOf(fileName);
+  const objectPath = `${attachmentPrefix(
+    invoice.supplier_nit,
+    invoice.invoice_number,
+  )}${crypto.randomUUID()}.${ext}`;
+
+  const admin = createAdminClient();
+  const { data, error } = await admin.storage
+    .from(BUCKET)
+    .createSignedUploadUrl(objectPath);
+  if (error || !data) {
+    return { ok: false, error: error?.message ?? "No se pudo preparar la subida" };
+  }
+
+  return { ok: true, path: data.path, token: data.token };
+}
+
+/**
+ * Paso 2: registra en la BD el archivo ya subido.
+ * Vuelve a validar permisos y comprueba que el objeto pertenece al prefijo de
+ * ESTA factura (que nadie registre un objeto ajeno).
+ */
+export async function registerAttachment(
+  invoiceId: string,
+  input: { path: string; fileName: string; mimeType: string | null; size: number },
+): Promise<ActionResult> {
+  const staff = await requireStaffProfile();
+  if (!staff.ok) return { error: staff.error };
+
+  const invalid = validateAttachment(input.fileName, input.size);
+  if (invalid) return { error: invalid };
+
+  const supabase = await createClient();
+  const { data: invoice, error: fetchError } = await supabase
+    .from("invoices")
+    .select("supplier_nit, invoice_number")
+    .eq("id", invoiceId)
+    .maybeSingle();
+  if (fetchError) return { error: fetchError.message };
+  if (!invoice) return { error: "Factura no encontrada" };
+
+  const objectPath = input.path.replace(/^invoices\//i, "");
+  const prefix = attachmentPrefix(invoice.supplier_nit, invoice.invoice_number);
+  if (!objectPath.startsWith(prefix)) {
+    return { error: "El archivo no corresponde a esta factura" };
+  }
+
+  const admin = createAdminClient();
+  const { error: insertError } = await admin.from("invoice_attachments").insert({
+    invoice_id: invoiceId,
+    storage_path: `${BUCKET}/${objectPath}`,
+    file_name: input.fileName,
+    mime_type: input.mimeType,
+    size_bytes: input.size,
+    uploaded_by: staff.approverId,
+  });
+  if (insertError) {
+    // El objeto ya está en Storage pero no quedó registrado: se limpia para no
+    // dejar huérfanos.
+    await admin.storage.from(BUCKET).remove([objectPath]);
+    return { error: `No se pudo registrar el soporte: ${insertError.message}` };
+  }
+
+  await logInvoiceActivity({
+    invoiceId,
+    action: "attachment_uploaded",
+    details: { file_name: input.fileName },
+  });
+
+  revalidatePath(`/facturas/${invoiceId}`);
+  return { ok: true };
+}
+
+export async function deleteAttachment(
+  attachmentId: string,
+): Promise<ActionResult> {
+  const staff = await requireStaffProfile();
+  if (!staff.ok) return { error: staff.error };
+
+  const admin = createAdminClient();
+  const { data: row, error: fetchError } = await admin
+    .from("invoice_attachments")
+    .select("id, invoice_id, storage_path, file_name")
+    .eq("id", attachmentId)
+    .maybeSingle();
+  if (fetchError) return { error: fetchError.message };
+  if (!row) return { error: "El soporte ya no existe" };
+
+  const { error: removeError } = await admin.storage
+    .from(BUCKET)
+    .remove([row.storage_path.replace(/^invoices\//i, "")]);
+  if (removeError) {
+    console.error(
+      "[deleteAttachment] no se pudo borrar el objeto de Storage:",
+      removeError.message,
+    );
+  }
+
+  const { error: deleteError } = await admin
+    .from("invoice_attachments")
+    .delete()
+    .eq("id", attachmentId);
+  if (deleteError) return { error: deleteError.message };
+
+  await logInvoiceActivity({
+    invoiceId: row.invoice_id,
+    action: "attachment_deleted",
+    details: { file_name: row.file_name },
+  });
+
+  revalidatePath(`/facturas/${row.invoice_id}`);
   return { ok: true };
 }

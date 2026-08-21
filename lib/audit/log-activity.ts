@@ -16,6 +16,8 @@ export type ActivityAction =
   | "reverted_to_print"
   | "po_uploaded"
   | "po_deleted"
+  | "attachment_uploaded"
+  | "attachment_deleted"
   | "approvers_configured"
   | "deleted";
 

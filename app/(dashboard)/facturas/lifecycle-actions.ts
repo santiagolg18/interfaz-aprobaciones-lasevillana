@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { after } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { getCurrentUser } from "@/lib/auth/current-user";
+import { requireStaffProfile } from "@/lib/auth/current-user";
 import { logInvoiceActivity } from "@/lib/audit/log-activity";
 import { triggerPdfGeneration } from "@/lib/pdf-service";
 
@@ -17,18 +17,6 @@ export type LifecycleResult = { ok: boolean; error?: string };
 function toObjectPath(storagePath: string | null | undefined): string | null {
   if (!storagePath) return null;
   return storagePath.replace(/^invoices\//i, "");
-}
-
-// Solo admin/compras pueden mover el ciclo de vida de una factura.
-async function requireStaffProfile(): Promise<
-  { ok: true; approverId: string } | { ok: false; error: string }
-> {
-  const me = await getCurrentUser();
-  if (!me || !me.profile) return { ok: false, error: "Sesión expirada" };
-  if (me.role !== "admin" && me.role !== "purchasing") {
-    return { ok: false, error: "No tienes permiso para esta acción" };
-  }
-  return { ok: true, approverId: me.profile.id };
 }
 
 function revalidateLists() {
@@ -330,10 +318,18 @@ export async function deleteInvoice(
   const admin = createAdminClient();
 
   // 2) Borrar archivos de Storage (best-effort; no bloquea el borrado).
+  //    Las filas de invoice_attachments caen por cascade, pero los objetos no:
+  //    hay que listarlos antes de borrar la factura.
+  const { data: attachmentRows } = await admin
+    .from("invoice_attachments")
+    .select("storage_path")
+    .eq("invoice_id", invoiceId);
+
   const objects = [
     toObjectPath(invoice.pdf_storage_path),
     toObjectPath(invoice.final_pdf_path),
     toObjectPath(invoice.po_storage_path),
+    ...(attachmentRows ?? []).map((a) => toObjectPath(a.storage_path)),
   ].filter((p): p is string => Boolean(p));
   if (objects.length > 0) {
     const { error: removeError } = await admin.storage

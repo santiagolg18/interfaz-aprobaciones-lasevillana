@@ -37,7 +37,12 @@ import {
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentUser, canApproveInvoices } from "@/lib/auth/current-user";
 import { formatDate, formatDateTime } from "@/lib/format";
-import { getSignedStorageUrl } from "@/lib/supabase/storage";
+import {
+  getSignedStorageUrl,
+  getSignedStorageUrls,
+} from "@/lib/supabase/storage";
+import { isInlineViewable } from "@/lib/invoices/attachments";
+import type { InvoiceAttachment } from "@/components/invoice-attachments";
 import { findDuplicateInvoices } from "@/lib/invoices/find-duplicates";
 import { configureInvoiceApprovers } from "./actions";
 
@@ -130,13 +135,23 @@ export async function InvoiceDetail({
     ? (invoice.review_checklist as unknown as ChecklistSnapshotEntry[])
     : null;
 
+  // Soportes: archivos adicionales adjuntos a la factura.
+  const { data: attachmentRows } = await supabase
+    .from("invoice_attachments")
+    .select("id, file_name, size_bytes, uploaded_at, uploaded_by, storage_path")
+    .eq("invoice_id", id)
+    .order("uploaded_at", { ascending: false });
+
   // Nombres de compras asociados a la factura: quién dejó la revisión empezada
-  // ("Guardado hace 2 horas por Juan") y quién la liberó a los aprobadores.
+  // ("Guardado hace 2 horas por Juan"), quién la liberó a los aprobadores y
+  // quién subió cada soporte.
   const staffIds = Array.from(
     new Set(
-      [invoice.review_draft_by, invoice.reviewed_by].filter(
-        (id): id is string => Boolean(id),
-      ),
+      [
+        invoice.review_draft_by,
+        invoice.reviewed_by,
+        ...(attachmentRows ?? []).map((a) => a.uploaded_by),
+      ].filter((id): id is string => Boolean(id)),
     ),
   );
   const staffNames = new Map<string, string>();
@@ -191,13 +206,37 @@ export async function InvoiceDetail({
       })
     : [];
 
-  const [originalUrl, finalUrl, poUrl] = await Promise.all([
+  const [originalUrl, finalUrl, poUrl, attachmentUrls] = await Promise.all([
     getSignedStorageUrl(
       invoice.pdf_storage_path ?? `${invoice.invoice_number}.pdf`,
     ),
     getSignedStorageUrl(invoice.final_pdf_path),
     getSignedStorageUrl(invoice.po_storage_path),
+    // Los soportes se firman en lote (una sola llamada a Storage). Lo que no se
+    // puede ver en el navegador (Excel, Word, ZIP) se sirve como descarga con
+    // su nombre original, porque el objeto en Storage se llama con un UUID.
+    getSignedStorageUrls(
+      (attachmentRows ?? []).map((a) => a.storage_path),
+      {
+        downloadNames: (attachmentRows ?? []).map((a) =>
+          isInlineViewable(a.file_name) ? null : a.file_name,
+        ),
+      },
+    ),
   ]);
+
+  const attachments: InvoiceAttachment[] = (attachmentRows ?? []).map(
+    (a, i) => ({
+      id: a.id,
+      fileName: a.file_name,
+      sizeBytes: a.size_bytes,
+      uploadedAt: a.uploaded_at,
+      uploadedByName: a.uploaded_by
+        ? (staffNames.get(a.uploaded_by) ?? null)
+        : null,
+      url: attachmentUrls[i] ?? null,
+    }),
+  );
 
   const showMobileStickyBar = Boolean(
     myApproval && myApproval.status === "pending",
@@ -378,6 +417,8 @@ export async function InvoiceDetail({
             poStoragePath={invoice.po_storage_path}
             poUploadedAt={invoice.po_uploaded_at}
             canManagePO={canManagePO}
+            attachments={attachments}
+            canManageAttachments={canManagePO}
           />
 
           <div className="surface overflow-hidden">

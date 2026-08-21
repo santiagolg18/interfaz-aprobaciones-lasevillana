@@ -78,3 +78,21 @@ export function defaultHomeForRole(role: CurrentUserRole): string {
   if (role === "purchasing") return "/facturas";
   return "/login";
 }
+
+/**
+ * Guarda para server actions que solo puede ejecutar el personal interno
+ * (Admin o Compras). Devuelve el id de perfil del actor para auditoría.
+ *
+ * A diferencia de requireStaff(), NO redirige: devuelve un resultado que la
+ * action puede convertir en un mensaje de error inline.
+ */
+export async function requireStaffProfile(): Promise<
+  { ok: true; approverId: string } | { ok: false; error: string }
+> {
+  const me = await getCurrentUser();
+  if (!me || !me.profile) return { ok: false, error: "Sesión expirada" };
+  if (me.role !== "admin" && me.role !== "purchasing") {
+    return { ok: false, error: "No tienes permiso para esta acción" };
+  }
+  return { ok: true, approverId: me.profile.id };
+}

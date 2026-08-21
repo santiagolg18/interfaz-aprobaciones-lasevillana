@@ -79,3 +79,17 @@ export function humanDuration(fromIso: string, toIso: string) {
   const hrs = hours % 24;
   return hrs ? `${days} d ${hrs} h` : `${days} d`;
 }
+
+const BYTE_UNITS = ["B", "KB", "MB", "GB"];
+
+export function formatBytes(value: number | null | undefined) {
+  if (value === null || value === undefined || !Number.isFinite(value)) return "—";
+  if (value < 1024) return `${value} B`;
+  let n = value;
+  let unit = 0;
+  while (n >= 1024 && unit < BYTE_UNITS.length - 1) {
+    n /= 1024;
+    unit += 1;
+  }
+  return `${n < 10 ? n.toFixed(1) : Math.round(n)} ${BYTE_UNITS[unit]}`;
+}

@@ -85,6 +85,16 @@ export const ACTIVITY_META: Record<ActivityAction, ActivityMeta> = {
     Icon: PaperclipIcon,
     dotClassName: "bg-neutral-100 text-neutral-600 ring-neutral-200",
   },
+  attachment_uploaded: {
+    label: "Soporte adjuntado",
+    Icon: Paperclip,
+    dotClassName: "bg-slate-100 text-slate-600 ring-slate-200",
+  },
+  attachment_deleted: {
+    label: "Soporte eliminado",
+    Icon: PaperclipIcon,
+    dotClassName: "bg-neutral-100 text-neutral-600 ring-neutral-200",
+  },
   approvers_configured: {
     label: "Aprobadores configurados",
     Icon: Settings2,

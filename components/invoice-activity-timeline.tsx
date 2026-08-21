@@ -30,6 +30,9 @@ function describeDetails(details: unknown): string | null {
       d.approval_mode === "sequential" ? "Modo en cadena" : "Modo en paralelo",
     );
   }
+  if (typeof d.file_name === "string" && d.file_name.trim()) {
+    parts.push(d.file_name.trim());
+  }
   if (typeof d.approvers === "number") {
     parts.push(`${d.approvers} aprobador${d.approvers === 1 ? "" : "es"}`);
   }
