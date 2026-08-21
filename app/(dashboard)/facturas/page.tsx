@@ -380,7 +380,7 @@ export default async function FacturasPage({
           </div>
 
           {totalCount > 0 && !isPrintTab ? (
-            <div className="md:hidden">
+            <div className="lg:hidden">
               <MobileSortSelect
                 options={SORT_OPTIONS}
                 pathname="/facturas"

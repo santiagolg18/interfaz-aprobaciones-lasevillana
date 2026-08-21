@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, UserCheck, UserX } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -38,8 +38,20 @@ export function ApproverToggleButton({
       <form action={action}>
         <input type="hidden" name="id" value={id} />
         <input type="hidden" name="next_active" value={isActive ? "false" : "true"} />
-        <SubmitButton variant="ghost" size="sm" pendingLabel="Guardando…">
-          {isActive ? "Desactivar" : "Activar"}
+        <SubmitButton
+          variant="ghost"
+          size="icon-sm"
+          pendingLabel=""
+          title={isActive ? "Desactivar aprobador" : "Activar aprobador"}
+          aria-label={
+            isActive ? `Desactivar a ${name}` : `Activar a ${name}`
+          }
+        >
+          {isActive ? (
+            <UserX className="size-4" />
+          ) : (
+            <UserCheck className="size-4" />
+          )}
         </SubmitButton>
       </form>
     );
@@ -49,10 +61,12 @@ export function ApproverToggleButton({
     <>
       <Button
         variant="ghost"
-        size="sm"
+        size="icon-sm"
         onClick={() => setOpen(true)}
+        title="Desactivar aprobador"
+        aria-label={`Desactivar a ${name}`}
       >
-        Desactivar
+        <UserX className="size-4" />
       </Button>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="sm:max-w-md">

@@ -62,6 +62,15 @@ export function formatDateTime(value: string | Date | null | undefined) {
   return `${p.day}/${p.month}/${p.year} ${hour}:${p.minute}`;
 }
 
+export function formatDateTimeParts(value: string | Date | null | undefined) {
+  if (!value) return { date: "—", time: "" };
+  const d = typeof value === "string" ? new Date(value) : value;
+  if (Number.isNaN(d.getTime())) return { date: "—", time: "" };
+  const p = partsToObject(bogotaDateTimeFmt.formatToParts(d));
+  const hour = p.hour === "24" ? "00" : p.hour;
+  return { date: `${p.day}/${p.month}/${p.year}`, time: `${hour}:${p.minute}` };
+}
+
 export function timeAgo(value: string | Date | null | undefined) {
   if (!value) return "—";
   return formatDistanceToNow(new Date(value), { locale: es, addSuffix: true });

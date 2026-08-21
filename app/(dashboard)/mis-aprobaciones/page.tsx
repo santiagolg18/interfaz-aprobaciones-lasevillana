@@ -24,6 +24,7 @@ import { StatCard } from "@/components/stat-card";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/auth/current-user";
 import { formatDateTime } from "@/lib/format";
+import { DateCell } from "@/components/date-cell";
 
 export const dynamic = "force-dynamic";
 
@@ -290,7 +291,7 @@ export default async function MisAprobacionesPage({
         ) : (
           <>
             {/* Mobile: cards */}
-            <ul className="md:hidden space-y-2">
+            <ul className="lg:hidden space-y-2">
               {historyRows.map((r) => {
                 const inv = r.invoice;
                 return (
@@ -337,7 +338,7 @@ export default async function MisAprobacionesPage({
             </ul>
 
             {/* Desktop: table */}
-            <div className="surface hidden md:block overflow-hidden">
+            <div className="surface hidden lg:block overflow-hidden">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -361,12 +362,14 @@ export default async function MisAprobacionesPage({
                             {inv.invoice_number}
                           </Link>
                         </TableCell>
-                        <TableCell>
-                          <div className="text-sm">{inv.supplier_name}</div>
+                        <TableCell className="w-full max-w-0">
+                          <div className="truncate text-sm" title={inv.supplier_name}>
+                            {inv.supplier_name}
+                          </div>
                           {r.releasedByName ? (
                             <div className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
                               <Send className="size-3 shrink-0" aria-hidden />
-                              <span>
+                              <span className="truncate">
                                 Liberada por{" "}
                                 <span className="font-medium text-neutral-700">
                                   {r.releasedByName}
@@ -379,10 +382,13 @@ export default async function MisAprobacionesPage({
                           <Money value={inv.total_amount} />
                         </TableCell>
                         <TableCell>
-                          <StatusBadge status={r.status} />
+                          <StatusBadge
+                            status={r.status}
+                            className="whitespace-normal"
+                          />
                         </TableCell>
-                        <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
-                          {formatDateTime(r.approvedAt)}
+                        <TableCell>
+                          <DateCell value={r.approvedAt} />
                         </TableCell>
                       </TableRow>
                     );

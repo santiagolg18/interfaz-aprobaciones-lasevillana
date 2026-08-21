@@ -253,7 +253,7 @@ export default async function ProveedoresPage({
       ) : (
         <>
           {/* Mobile: cards */}
-          <ul className="md:hidden space-y-2">
+          <ul className="lg:hidden space-y-2">
             {filtered.map((s) => {
               const rulesCount = Array.isArray(s.approval_rules)
                 ? s.approval_rules.length
@@ -339,16 +339,16 @@ export default async function ProveedoresPage({
           </ul>
 
           {/* Desktop: table */}
-          <div className="surface hidden md:block overflow-hidden">
+          <div className="surface hidden lg:block overflow-hidden">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="md:w-[140px]">NIT</TableHead>
+                  <TableHead className="lg:w-[120px]">NIT</TableHead>
                   <TableHead>Proveedor</TableHead>
-                  <TableHead className="md:w-[140px]">Tipo</TableHead>
-                  <TableHead className="md:w-[120px] text-center">Aprobaciones</TableHead>
-                  <TableHead className="md:w-[120px] text-center">Aprobadores</TableHead>
-                  <TableHead className="md:w-32 text-right">Acciones</TableHead>
+                  <TableHead className="lg:w-[110px]">Tipo</TableHead>
+                  <TableHead className="lg:w-[90px] text-center">Aprobaciones</TableHead>
+                  <TableHead className="lg:w-[100px] text-center">Aprobadores</TableHead>
+                  <TableHead className="lg:w-24 text-right">Acciones</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -362,25 +362,31 @@ export default async function ProveedoresPage({
                       <TableCell className="font-mono text-sm tabular-nums text-neutral-700 whitespace-nowrap">
                         {s.nit}
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="w-full max-w-0">
                         <Link
                           href={editHref(s.id)}
                           className="block hover:underline"
                         >
-                          <div className="font-medium leading-tight">
+                          <div
+                            className="truncate font-medium leading-tight"
+                            title={s.nombre}
+                          >
                             {s.nombre}
                           </div>
                           {(s.email || phone) && (
                             <div className="mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
                               {s.email && (
-                                <span className="inline-flex items-center gap-1">
-                                  <Mail className="size-3" />
-                                  {s.email}
+                                <span
+                                  className="inline-flex min-w-0 items-center gap-1"
+                                  title={s.email}
+                                >
+                                  <Mail className="size-3 shrink-0" />
+                                  <span className="truncate">{s.email}</span>
                                 </span>
                               )}
                               {phone && phone !== "0" && (
                                 <span className="inline-flex items-center gap-1">
-                                  <Phone className="size-3" />
+                                  <Phone className="size-3 shrink-0" />
                                   {phone}
                                 </span>
                               )}
@@ -413,7 +419,8 @@ export default async function ProveedoresPage({
                           <Button
                             asChild
                             variant="ghost"
-                            size="icon"
+                            size="icon-sm"
+                            title="Editar"
                             aria-label={`Editar ${s.nombre}`}
                           >
                             <Link href={editHref(s.id)}>

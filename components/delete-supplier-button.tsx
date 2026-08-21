@@ -28,7 +28,7 @@ export function DeleteSupplierButton({
     <>
       <Button
         variant="ghost"
-        size="icon"
+        size="icon-sm"
         className="text-rose-600 hover:text-rose-700 hover:bg-rose-50"
         aria-label={`Eliminar ${nombre}`}
         onClick={() => setOpen(true)}

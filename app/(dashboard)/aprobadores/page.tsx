@@ -209,7 +209,7 @@ export default async function AprobadoresPage({
       ) : (
         <>
           {/* Mobile: cards */}
-          <ul className="md:hidden space-y-2">
+          <ul className="lg:hidden space-y-2">
             {filtered.map((a) => (
               <li
                 key={a.id}
@@ -280,22 +280,22 @@ export default async function AprobadoresPage({
           </ul>
 
           {/* Desktop: table */}
-          <div className="surface hidden md:block overflow-hidden">
+          <div className="surface hidden lg:block overflow-hidden">
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Aprobador</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead className="md:w-[140px] text-center">Proveedores</TableHead>
-                  <TableHead className="md:w-[120px]">Estado</TableHead>
-                  <TableHead className="md:w-44 text-right">Acciones</TableHead>
+                  <TableHead className="lg:w-[200px] xl:w-[280px]">Email</TableHead>
+                  <TableHead className="lg:w-[110px] text-center">Proveedores</TableHead>
+                  <TableHead className="lg:w-[110px]">Estado</TableHead>
+                  <TableHead className="lg:w-24 text-right">Acciones</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filtered.map((a) => (
                   <TableRow key={a.id}>
-                    <TableCell>
-                      <div className="flex items-center gap-3">
+                    <TableCell className="w-full max-w-0">
+                      <div className="flex items-center gap-2.5" title={a.name}>
                         <Avatar
                           name={a.name}
                           tone={a.is_active ? "primary" : "muted"}
@@ -303,24 +303,25 @@ export default async function AprobadoresPage({
                         {isAdmin ? (
                           <Link
                             href={`/aprobadores/${a.id}`}
-                            className="font-medium leading-tight text-neutral-900 hover:underline"
+                            className="truncate font-medium leading-tight text-neutral-900 hover:underline"
                           >
                             {a.name}
                           </Link>
                         ) : (
-                          <span className="font-medium leading-tight text-neutral-900">
+                          <span className="truncate font-medium leading-tight text-neutral-900">
                             {a.name}
                           </span>
                         )}
                       </div>
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="max-w-[160px] xl:max-w-[280px]">
                       <a
                         href={`mailto:${a.email}`}
-                        className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground hover:underline"
+                        className="flex min-w-0 items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground hover:underline"
+                        title={a.email}
                       >
-                        <Mail className="size-3.5" />
-                        {a.email}
+                        <Mail className="size-3.5 shrink-0" />
+                        <span className="truncate">{a.email}</span>
                       </a>
                     </TableCell>
                     <TableCell className="text-center">
@@ -363,7 +364,7 @@ export default async function AprobadoresPage({
                             pendingCount={openApprovalsByApprover.get(a.id) ?? 0}
                             action={toggleApproverActive}
                           />
-                          <Button asChild variant="ghost" size="icon">
+                          <Button asChild variant="ghost" size="icon-sm" title="Editar">
                             <Link
                               href={`/aprobadores/${a.id}`}
                               aria-label={`Editar ${a.name}`}

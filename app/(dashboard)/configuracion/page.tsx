@@ -83,7 +83,7 @@ export default async function ConfiguracionPage() {
       ) : (
         <>
           {/* Mobile: cards */}
-          <ul className="md:hidden space-y-2">
+          <ul className="lg:hidden space-y-2">
             {(users ?? []).map((u) => (
               <li
                 key={u.id}
@@ -165,34 +165,36 @@ export default async function ConfiguracionPage() {
           </ul>
 
           {/* Desktop: table */}
-          <div className="surface hidden md:block overflow-hidden">
+          <div className="surface hidden lg:block overflow-hidden">
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Usuario</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead className="md:w-[130px]">Rol</TableHead>
-                  <TableHead className="md:w-[120px]">Estado</TableHead>
-                  <TableHead className="md:w-[120px]">Acceso</TableHead>
-                  <TableHead className="md:w-44 text-right">Acciones</TableHead>
+                  <TableHead className="lg:w-[180px] xl:w-[260px]">Email</TableHead>
+                  <TableHead className="lg:w-[120px]">Rol</TableHead>
+                  <TableHead className="lg:w-[110px]">Estado</TableHead>
+                  <TableHead className="hidden lg:w-[120px] xl:table-cell">Acceso</TableHead>
+                  <TableHead className="lg:w-32 text-right">Acciones</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {(users ?? []).map((u) => (
                   <TableRow key={u.id}>
-                    <TableCell>
-                      <div className="flex items-center gap-3">
+                    <TableCell className="w-full max-w-0">
+                      <div className="flex items-center gap-2.5" title={u.name}>
                         <Avatar
                           name={u.name}
                           tone={u.is_active ? "primary" : "muted"}
                         />
-                        <span className="font-medium text-neutral-900">
+                        <span className="truncate font-medium text-neutral-900">
                           {u.name}
                         </span>
                       </div>
                     </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {u.email}
+                    <TableCell className="max-w-[150px] text-sm text-muted-foreground xl:max-w-[260px]">
+                      <div className="truncate" title={u.email}>
+                        {u.email}
+                      </div>
                     </TableCell>
                     <TableCell>
                       <RoleBadge
@@ -208,7 +210,7 @@ export default async function ConfiguracionPage() {
                         <Badge variant="outline" className="border-neutral-200 bg-neutral-100 text-neutral-600">Inactivo</Badge>
                       )}
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="hidden xl:table-cell">
                       {u.auth_user_id ? (
                         <Badge variant="secondary">Con cuenta</Badge>
                       ) : (
@@ -227,7 +229,7 @@ export default async function ConfiguracionPage() {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-1">
-                        <Button asChild variant="ghost" size="icon" title="Editar">
+                        <Button asChild variant="ghost" size="icon-sm" title="Editar">
                           <Link
                             href={`/configuracion/${u.id}`}
                             aria-label={`Editar ${u.name}`}
@@ -239,7 +241,7 @@ export default async function ConfiguracionPage() {
                           <Button
                             asChild
                             variant="ghost"
-                            size="icon"
+                            size="icon-sm"
                             title="Resetear contraseña"
                           >
                             <Link

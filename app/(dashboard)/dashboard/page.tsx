@@ -32,6 +32,7 @@ import {
   resolveInvoiceScope,
 } from "@/lib/invoices/business-front";
 import { formatDateTime } from "@/lib/format";
+import { DateCell } from "@/components/date-cell";
 import { cn } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -228,7 +229,7 @@ export default async function DashboardPage({
         ) : (
           <>
             {/* Mobile: cards */}
-            <ul className="md:hidden space-y-2">
+            <ul className="lg:hidden space-y-2">
               {(oldest ?? []).map((inv) => {
                 const days = daysAgo(inv.received_at);
                 return (
@@ -269,7 +270,7 @@ export default async function DashboardPage({
             </ul>
 
             {/* Desktop: table */}
-            <div className="surface hidden md:block overflow-hidden">
+            <div className="surface hidden lg:block overflow-hidden">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -278,7 +279,7 @@ export default async function DashboardPage({
                     <TableHead className="text-right">Monto</TableHead>
                     <TableHead>Recibida</TableHead>
                     <TableHead>Antigüedad</TableHead>
-                    <TableHead>Progreso</TableHead>
+                    <TableHead className="hidden xl:table-cell">Progreso</TableHead>
                     <TableHead>Estado</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -298,17 +299,24 @@ export default async function DashboardPage({
                             {inv.invoice_number}
                           </Link>
                         </TableCell>
-                        <TableCell className="text-sm">{inv.supplier_name}</TableCell>
+                        <TableCell className="w-full max-w-0">
+                          <div
+                            className="truncate text-sm"
+                            title={inv.supplier_name}
+                          >
+                            {inv.supplier_name}
+                          </div>
+                        </TableCell>
                         <TableCell className="text-right whitespace-nowrap">
                           <Money value={inv.total_amount} />
                         </TableCell>
-                        <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
-                          {formatDateTime(inv.received_at)}
+                        <TableCell>
+                          <DateCell value={inv.received_at} />
                         </TableCell>
                         <TableCell>
                           <DaysAgoBadge days={days} />
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="hidden xl:table-cell">
                           <ApprovalProgress
                             current={inv.current_approvals}
                             required={inv.required_approvals}
@@ -316,7 +324,10 @@ export default async function DashboardPage({
                           />
                         </TableCell>
                         <TableCell>
-                          <StatusBadge status={inv.status} />
+                          <StatusBadge
+                            status={inv.status}
+                            className="whitespace-normal"
+                          />
                         </TableCell>
                       </TableRow>
                     );

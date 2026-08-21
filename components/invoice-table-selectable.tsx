@@ -25,6 +25,7 @@ import {
   InvoiceNotesPopover,
   type InvoiceNote,
 } from "@/components/invoice-notes-popover";
+import { DateCell } from "@/components/date-cell";
 import { cn } from "@/lib/utils";
 import { formatDateTime, timeAgo } from "@/lib/format";
 import {
@@ -105,6 +106,10 @@ export function InvoiceTableSelectable({
 
   // Columna de acciones por fila (archivar/restaurar + eliminar) para staff.
   const showRowActions = canManage;
+  // Las notas viven dentro de la misma columna de acciones para no gastar una
+  // columna entera; por eso la columna existe aunque el usuario no sea staff.
+  const hasNotes = Object.keys(notes).length > 0;
+  const showActionsCol = showRowActions || hasNotes;
 
   return (
     <div className="space-y-2">
@@ -193,7 +198,7 @@ export function InvoiceTableSelectable({
       ) : null}
 
       {/* Mobile: cards */}
-      <ul className="md:hidden space-y-2">
+      <ul className="lg:hidden space-y-2">
         {invoices.map((inv) => (
           <li
             key={inv.id}
@@ -222,9 +227,13 @@ export function InvoiceTableSelectable({
                   ) : null}
                   {inv.supplier_nit ? ` · NIT ${inv.supplier_nit}` : ""}
                 </div>
-                {inv.isDuplicate ? <DuplicateBadge /> : null}
-                {showDraftBadge(inv) ? (
-                  <DraftBadge savedAt={inv.review_draft_saved_at!} />
+                {inv.isDuplicate || showDraftBadge(inv) ? (
+                  <div className="mt-1.5 flex flex-wrap items-center gap-1">
+                    {inv.isDuplicate ? <DuplicateBadge /> : null}
+                    {showDraftBadge(inv) ? (
+                      <DraftBadge savedAt={inv.review_draft_saved_at!} />
+                    ) : null}
+                  </div>
                 ) : null}
               </div>
               <div className="flex items-center gap-2">
@@ -282,7 +291,7 @@ export function InvoiceTableSelectable({
       </ul>
 
       {/* Desktop: table */}
-      <div className="surface hidden md:block overflow-hidden">
+      <div className="surface hidden lg:block overflow-hidden">
         <Table>
           <TableHeader>
             <TableRow>
@@ -327,10 +336,11 @@ export function InvoiceTableSelectable({
                 />
               </TableHead>
               <TableHead>Estado</TableHead>
-              <TableHead>Progreso</TableHead>
-              <TableHead className="w-12 text-center">Notas</TableHead>
-              {showRowActions ? (
-                <TableHead className="text-right">Acciones</TableHead>
+              <TableHead className="hidden xl:table-cell">Progreso</TableHead>
+              {showActionsCol ? (
+                <TableHead className="w-28 text-right">
+                  {showRowActions ? "Acciones" : "Notas"}
+                </TableHead>
               ) : null}
             </TableRow>
           </TableHeader>
@@ -351,10 +361,10 @@ export function InvoiceTableSelectable({
                     </span>
                   </TableCell>
                 ) : null}
-                <TableCell className="font-medium text-neutral-900 whitespace-nowrap">
+                <TableCell className="font-medium text-neutral-900">
                   <Link
                     href={detailHref(inv.id)}
-                    className="inline-flex items-center gap-1.5 after:absolute after:inset-0 after:content-[''] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2 rounded-sm"
+                    className="inline-flex items-center gap-1.5 whitespace-nowrap after:absolute after:inset-0 after:content-[''] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2 rounded-sm"
                   >
                     {inv.invoice_number}
                     {inv.po_storage_path ? (
@@ -364,56 +374,69 @@ export function InvoiceTableSelectable({
                       />
                     ) : null}
                   </Link>
-                  {inv.isDuplicate ? <DuplicateBadge /> : null}
-                  {showDraftBadge(inv) ? (
-                    <DraftBadge savedAt={inv.review_draft_saved_at!} />
+                  {inv.isDuplicate || showDraftBadge(inv) ? (
+                    <div className="mt-1 flex flex-wrap items-center gap-1">
+                      {inv.isDuplicate ? <DuplicateBadge /> : null}
+                      {showDraftBadge(inv) ? (
+                        <DraftBadge savedAt={inv.review_draft_saved_at!} />
+                      ) : null}
+                    </div>
                   ) : null}
                 </TableCell>
-                <TableCell>
-                  <div className="text-sm">{inv.supplier_name}</div>
-                  <div className="text-xs text-muted-foreground tabular-nums">
+                <TableCell className="w-full max-w-0">
+                  <div className="truncate text-sm" title={inv.supplier_name}>
+                    {inv.supplier_name}
+                  </div>
+                  <div className="truncate text-xs text-muted-foreground tabular-nums">
                     NIT {inv.supplier_nit}
                   </div>
                 </TableCell>
                 <TableCell className="text-right whitespace-nowrap">
                   <Money value={inv.total_amount} />
                 </TableCell>
-                <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
-                  {formatDateTime(inv.received_at)}
+                <TableCell>
+                  <DateCell value={inv.received_at} />
                 </TableCell>
                 <TableCell>
-                  <StatusBadge status={inv.status} />
+                  <StatusBadge
+                    status={inv.status}
+                    className="whitespace-normal"
+                  />
                 </TableCell>
-                <TableCell>
+                <TableCell className="hidden xl:table-cell">
                   <ApprovalProgress
                     current={inv.current_approvals}
                     required={inv.required_approvals}
                     status={inv.status}
                   />
                 </TableCell>
-                <TableCell className="w-12 text-center">
-                  <div className="relative z-10">
-                    {notes[inv.id] ? (
-                      <InvoiceNotesPopover notes={notes[inv.id]} />
-                    ) : null}
-                  </div>
-                </TableCell>
-                {showRowActions ? (
+                {showActionsCol ? (
                   <TableCell className="text-right">
-                    <div className="relative z-10 flex justify-end gap-1">
-                      {archivable ? (
-                        <ArchiveButton
-                          invoiceId={inv.id}
-                          action={
-                            activeTab === "archivadas" ? "unarchive" : "archive"
-                          }
-                        />
+                    <div className="relative z-10 flex items-center justify-end gap-0.5">
+                      {notes[inv.id] ? (
+                        <InvoiceNotesPopover notes={notes[inv.id]} />
                       ) : null}
-                      <DeleteInvoiceButton
-                        invoiceId={inv.id}
-                        invoiceNumber={inv.invoice_number}
-                        status={inv.status}
-                      />
+                      {showRowActions ? (
+                        <>
+                          {archivable ? (
+                            <ArchiveButton
+                              invoiceId={inv.id}
+                              action={
+                                activeTab === "archivadas"
+                                  ? "unarchive"
+                                  : "archive"
+                              }
+                              iconOnly
+                            />
+                          ) : null}
+                          <DeleteInvoiceButton
+                            invoiceId={inv.id}
+                            invoiceNumber={inv.invoice_number}
+                            status={inv.status}
+                            iconOnly
+                          />
+                        </>
+                      ) : null}
                     </div>
                   </TableCell>
                 ) : null}
@@ -434,14 +457,16 @@ function showDraftBadge(inv: SelectableInvoice) {
 }
 
 // La revisión de compras ya tiene avance guardado (checklist u observaciones).
+// El operario lo reconoce como "borrador": etiqueta corta y siempre con texto,
+// porque un icono suelto no se entiende de un vistazo.
 function DraftBadge({ savedAt }: { savedAt: string }) {
   return (
     <span
-      className="ml-1.5 inline-flex items-center gap-1 rounded-full bg-sky-50 px-1.5 py-0.5 text-[10px] font-semibold text-sky-700 ring-1 ring-inset ring-sky-200 align-middle"
-      title={`Última edición ${timeAgo(savedAt)}`}
+      className="inline-flex items-center gap-1 rounded-full bg-sky-50 px-2 py-0.5 text-[11px] font-semibold text-sky-700 ring-1 ring-inset ring-sky-200 align-middle whitespace-nowrap"
+      title={`Revisión de compras empezada · última edición ${timeAgo(savedAt)}`}
     >
-      <ClipboardCheck className="size-2.5" />
-      Revisión empezada
+      <ClipboardCheck className="size-3 shrink-0" />
+      Borrador
     </span>
   );
 }
@@ -449,10 +474,10 @@ function DraftBadge({ savedAt }: { savedAt: string }) {
 function DuplicateBadge() {
   return (
     <span
-      className="ml-1.5 inline-flex items-center gap-1 rounded-full bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 ring-1 ring-inset ring-amber-200 align-middle"
-      title="Hay otra factura no archivada con el mismo número y NIT"
+      className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700 ring-1 ring-inset ring-amber-200 align-middle whitespace-nowrap"
+      title="Duplicada: hay otra factura no archivada con el mismo número y NIT"
     >
-      <Copy className="size-2.5" />
+      <Copy className="size-3 shrink-0" />
       Duplicada
     </span>
   );

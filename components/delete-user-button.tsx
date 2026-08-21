@@ -28,7 +28,7 @@ export function DeleteUserButton({ id, name }: { id: string; name: string }) {
       renderTrigger={(open) => (
         <Button
           variant="ghost"
-          size="icon"
+          size="icon-sm"
           title="Eliminar"
           aria-label={`Eliminar ${name}`}
           className="text-rose-600 hover:bg-rose-50 hover:text-rose-700"

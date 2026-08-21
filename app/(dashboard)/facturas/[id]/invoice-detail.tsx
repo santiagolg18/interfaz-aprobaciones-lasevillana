@@ -37,6 +37,7 @@ import {
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentUser, canApproveInvoices } from "@/lib/auth/current-user";
 import { formatDate, formatDateTime } from "@/lib/format";
+import { DateCell } from "@/components/date-cell";
 import {
   getSignedStorageUrl,
   getSignedStorageUrls,
@@ -482,7 +483,7 @@ export async function InvoiceDetail({
             ) : (
               <>
                 {/* Mobile: cards */}
-                <ul className="md:hidden divide-y">
+                <ul className="xl:hidden divide-y">
                   {orderedApprovals.map((a, index) => {
                     const isMe = a.approver_id === myApproverId;
                     const meHighlight = isMe
@@ -543,15 +544,15 @@ export async function InvoiceDetail({
                 </ul>
 
                 {/* Desktop: table */}
-                <div className="hidden md:block">
+                <div className="surface hidden xl:block overflow-hidden">
                   <Table>
                     <TableHeader>
                       <TableRow>
                         <TableHead>Aprobador</TableHead>
-                        <TableHead>Email</TableHead>
+                        <TableHead className="hidden 2xl:table-cell">Email</TableHead>
                         <TableHead>Estado</TableHead>
                         <TableHead>Fecha</TableHead>
-                        <TableHead>Notas</TableHead>
+                        <TableHead className="xl:w-[180px] 2xl:w-[240px]">Notas</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -559,26 +560,37 @@ export async function InvoiceDetail({
                         const isMe = a.approver_id === myApproverId;
                         return (
                           <TableRow key={a.id}>
-                            <TableCell className="font-medium text-neutral-900">
-                              <span className="inline-flex items-center gap-1.5">
+                            <TableCell className="w-full max-w-0 font-medium text-neutral-900">
+                              <span className="flex items-center gap-1.5">
                                 {isSequential ? (
                                   <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-neutral-900 text-[11px] font-semibold text-white">
                                     {index + 1}
                                   </span>
                                 ) : null}
-                                {a.approvers?.name ?? "—"}
+                                <span
+                                  className="truncate"
+                                  title={a.approvers?.name ?? undefined}
+                                >
+                                  {a.approvers?.name ?? "—"}
+                                </span>
                                 {isMe ? (
-                                  <span className="rounded-full bg-neutral-900 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
+                                  <span className="shrink-0 rounded-full bg-neutral-900 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
                                     Tú
                                   </span>
                                 ) : null}
                               </span>
                             </TableCell>
-                            <TableCell className="text-sm text-muted-foreground">
-                              {a.approvers?.email ?? "—"}
+                            <TableCell className="hidden max-w-0 text-sm text-muted-foreground 2xl:table-cell">
+                              <div
+                                className="truncate"
+                                title={a.approvers?.email ?? undefined}
+                              >
+                                {a.approvers?.email ?? "—"}
+                              </div>
                             </TableCell>
                             <TableCell>
                               <StatusBadge
+                                className="whitespace-normal"
                                 status={a.status}
                                 labelOverride={
                                   isSequential && a.status === "pending"
@@ -587,11 +599,13 @@ export async function InvoiceDetail({
                                 }
                               />
                             </TableCell>
-                            <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
-                              {formatDateTime(a.approved_at)}
+                            <TableCell>
+                              <DateCell value={a.approved_at} />
                             </TableCell>
-                            <TableCell className="text-sm text-muted-foreground max-w-[240px] truncate">
-                              {a.notes ?? "—"}
+                            <TableCell className="max-w-[180px] text-sm text-muted-foreground 2xl:max-w-[240px]">
+                              <div className="truncate" title={a.notes ?? undefined}>
+                                {a.notes ?? "—"}
+                              </div>
                             </TableCell>
                           </TableRow>
                         );

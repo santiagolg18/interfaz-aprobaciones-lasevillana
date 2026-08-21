@@ -15,6 +15,7 @@ export function DeleteInvoiceButton({
   status,
   redirectTo,
   variant = "row",
+  iconOnly = false,
 }: {
   invoiceId: string;
   invoiceNumber: string;
@@ -22,6 +23,8 @@ export function DeleteInvoiceButton({
   // Si se pasa, tras eliminar se navega ahí (p. ej. desde el detalle).
   redirectTo?: string;
   variant?: "row" | "full";
+  /** En tablas se usa solo el icono para no ensanchar la columna de acciones. */
+  iconOnly?: boolean;
 }) {
   const router = useRouter();
   const isSensitive = status === "approved" || status === "completed";
@@ -70,13 +73,18 @@ export function DeleteInvoiceButton({
         ) : (
           <Button
             variant="ghost"
-            size="sm"
+            size={iconOnly ? "icon-sm" : "sm"}
             onClick={open}
-            className="gap-1.5 text-muted-foreground hover:bg-rose-50 hover:text-rose-700"
+            className={
+              iconOnly
+                ? "text-muted-foreground hover:bg-rose-50 hover:text-rose-700"
+                : "gap-1.5 text-muted-foreground hover:bg-rose-50 hover:text-rose-700"
+            }
+            aria-label={`Eliminar factura ${invoiceNumber}`}
             title="Eliminar factura"
           >
             <Trash2 className="size-4" />
-            <span className="hidden sm:inline">Eliminar</span>
+            {iconOnly ? null : <span className="hidden sm:inline">Eliminar</span>}
           </Button>
         )
       }

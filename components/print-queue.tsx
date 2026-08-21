@@ -23,6 +23,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { DateCell } from "@/components/date-cell";
 import { formatCOP, formatDateTime } from "@/lib/format";
 import {
   markSentToAccounting,
@@ -43,7 +44,14 @@ export type PrintQueueItem = {
   pdfStatus: string | null;
 };
 
-function PdfButton({ item }: { item: PrintQueueItem }) {
+function PdfButton({
+  item,
+  compact = false,
+}: {
+  item: PrintQueueItem;
+  /** En la tabla se acortan los textos para no ensanchar la columna. */
+  compact?: boolean;
+}) {
   const router = useRouter();
   const [retrying, startRetry] = useTransition();
 
@@ -74,7 +82,7 @@ function PdfButton({ item }: { item: PrintQueueItem }) {
           ) : (
             <FileWarning className="size-3.5" />
           )}
-          PDF falló · Reintentar
+          {compact ? "Reintentar" : "PDF falló · Reintentar"}
         </button>
       );
     }
@@ -84,7 +92,7 @@ function PdfButton({ item }: { item: PrintQueueItem }) {
         title="El PDF final aún no está disponible"
       >
         <FileWarning className="size-3.5" />
-        PDF en proceso
+        {compact ? "En proceso" : "PDF en proceso"}
       </span>
     );
   }
@@ -92,7 +100,7 @@ function PdfButton({ item }: { item: PrintQueueItem }) {
     <Button asChild size="sm" className="gap-1.5">
       <a href={item.pdfUrl} target="_blank" rel="noopener noreferrer">
         <Download className="size-4" />
-        Descargar / Imprimir
+        {compact ? "Descargar" : "Descargar / Imprimir"}
       </a>
     </Button>
   );
@@ -223,7 +231,7 @@ export function PrintQueue({
       ) : null}
 
       {/* Mobile: cards */}
-      <ul className="md:hidden space-y-2">
+      <ul className="lg:hidden space-y-2">
         {items.map((inv) => (
           <li
             key={inv.id}
@@ -279,7 +287,7 @@ export function PrintQueue({
       </ul>
 
       {/* Desktop: table */}
-      <div className="surface hidden md:block overflow-hidden">
+      <div className="surface hidden lg:block overflow-hidden">
         <Table>
           <TableHeader>
             <TableRow>
@@ -324,31 +332,34 @@ export function PrintQueue({
                     {inv.invoice_number}
                   </Link>
                 </TableCell>
-                <TableCell>
-                  <div className="text-sm">{inv.supplier_name}</div>
-                  <div className="text-xs text-muted-foreground tabular-nums">
+                <TableCell className="w-full max-w-0">
+                  <div className="truncate text-sm" title={inv.supplier_name}>
+                    {inv.supplier_name}
+                  </div>
+                  <div className="truncate text-xs text-muted-foreground tabular-nums">
                     NIT {inv.supplier_nit}
                   </div>
                 </TableCell>
                 <TableCell className="text-right whitespace-nowrap tabular-nums">
                   {formatCOP(inv.total_amount)}
                 </TableCell>
-                <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
-                  {formatDateTime(inv.received_at)}
+                <TableCell>
+                  <DateCell value={inv.received_at} />
                 </TableCell>
                 <TableCell className="text-right">
-                  <div className="flex items-center justify-end gap-2">
-                    <PdfButton item={inv} />
+                  <div className="flex items-center justify-end gap-1.5">
+                    <PdfButton item={inv} compact />
                     {mode === "completed" ? (
                       <Button
                         variant="ghost"
-                        size="sm"
+                        size="icon-sm"
                         onClick={() => revert(inv.id)}
                         disabled={pending}
-                        className="gap-1.5 text-muted-foreground"
+                        className="text-muted-foreground"
+                        aria-label={`Revertir factura ${inv.invoice_number}`}
+                        title="Revertir envío a contabilidad"
                       >
                         <Undo2 className="size-4" />
-                        Revertir
                       </Button>
                     ) : null}
                   </div>

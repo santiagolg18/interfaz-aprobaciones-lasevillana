@@ -66,7 +66,7 @@ export function InlineApprovalActions({
             onClick={open("approve")}
           >
             <Check className="size-4" />
-            <span className="sr-only md:not-sr-only md:ml-0">Aprobar</span>
+            <span className="sr-only xl:not-sr-only xl:ml-0">Aprobar</span>
           </Button>
           <Button
             type="button"
@@ -77,7 +77,7 @@ export function InlineApprovalActions({
             onClick={open("reject")}
           >
             <X className="size-4" />
-            <span className="sr-only md:not-sr-only md:ml-0">Rechazar</span>
+            <span className="sr-only xl:not-sr-only xl:ml-0">Rechazar</span>
           </Button>
         </div>
       ) : (

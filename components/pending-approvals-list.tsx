@@ -32,6 +32,7 @@ import { StatusBadge } from "@/components/status-badge";
 import { EmptyState } from "@/components/empty-state";
 import { SearchInput } from "@/components/search-input";
 import { InlineApprovalActions } from "@/components/inline-approval-actions";
+import { DateCell } from "@/components/date-cell";
 import { formatDateTime, formatCOP } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -287,7 +288,7 @@ export function PendingApprovalsList({ rows }: { rows: PendingRow[] }) {
       ) : (
         <>
           {/* Mobile: cards */}
-          <ul className="md:hidden space-y-2">
+          <ul className="lg:hidden space-y-2">
             {filtered.map((r) => {
               const inv = r.invoice;
               return (
@@ -344,7 +345,7 @@ export function PendingApprovalsList({ rows }: { rows: PendingRow[] }) {
           </ul>
 
           {/* Desktop: table */}
-          <div className="surface hidden md:block overflow-hidden">
+          <div className="surface hidden lg:block overflow-hidden">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -353,7 +354,7 @@ export function PendingApprovalsList({ rows }: { rows: PendingRow[] }) {
                   <TableHead className="text-right">Monto</TableHead>
                   <TableHead>Recibida</TableHead>
                   <TableHead>Estado</TableHead>
-                  <TableHead className="text-right">Acciones</TableHead>
+                  <TableHead className="w-24 text-right xl:w-52">Acciones</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -369,8 +370,10 @@ export function PendingApprovalsList({ rows }: { rows: PendingRow[] }) {
                           {inv.invoice_number}
                         </Link>
                       </TableCell>
-                      <TableCell>
-                        <div className="text-sm">{inv.supplier_name}</div>
+                      <TableCell className="w-full max-w-0">
+                        <div className="truncate text-sm" title={inv.supplier_name}>
+                          {inv.supplier_name}
+                        </div>
                         {inv.supplier_nit ? (
                           <div className="text-xs text-muted-foreground tabular-nums">
                             NIT {inv.supplier_nit}
@@ -379,7 +382,7 @@ export function PendingApprovalsList({ rows }: { rows: PendingRow[] }) {
                         {r.releasedByName ? (
                           <div className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
                             <Send className="size-3 shrink-0" aria-hidden />
-                            <span>
+                            <span className="truncate">
                               Liberada por{" "}
                               <span className="font-medium text-neutral-700">
                                 {r.releasedByName}
@@ -391,11 +394,14 @@ export function PendingApprovalsList({ rows }: { rows: PendingRow[] }) {
                       <TableCell className="text-right whitespace-nowrap">
                         <Money value={inv.total_amount} />
                       </TableCell>
-                      <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
-                        {formatDateTime(inv.received_at)}
+                      <TableCell>
+                        <DateCell value={inv.received_at} />
                       </TableCell>
                       <TableCell>
-                        <StatusBadge status={inv.status} />
+                        <StatusBadge
+                          status={inv.status}
+                          className="whitespace-normal"
+                        />
                       </TableCell>
                       <TableCell className="text-right">
                         <InlineApprovalActions

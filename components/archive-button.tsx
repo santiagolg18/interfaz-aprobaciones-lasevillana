@@ -13,11 +13,15 @@ import {
 export function ArchiveButton({
   invoiceId,
   action,
+  iconOnly = false,
 }: {
   invoiceId: string;
   action: "archive" | "unarchive";
+  /** En tablas se usa solo el icono para no ensanchar la columna de acciones. */
+  iconOnly?: boolean;
 }) {
   const isArchive = action === "archive";
+  const label = isArchive ? "Archivar" : "Restaurar";
 
   return (
     <ConfirmDialog
@@ -37,9 +41,14 @@ export function ArchiveButton({
       renderTrigger={(open) => (
         <Button
           variant="ghost"
-          size="sm"
+          size={iconOnly ? "icon-sm" : "sm"}
           onClick={open}
-          className="gap-1.5 text-muted-foreground hover:text-neutral-900"
+          className={
+            iconOnly
+              ? "text-muted-foreground hover:text-neutral-900"
+              : "gap-1.5 text-muted-foreground hover:text-neutral-900"
+          }
+          aria-label={label}
           title={
             isArchive ? "Archivar (no requiere aprobación)" : "Devolver a revisión"
           }
@@ -49,9 +58,7 @@ export function ArchiveButton({
           ) : (
             <ArchiveRestore className="size-4" />
           )}
-          <span className="hidden sm:inline">
-            {isArchive ? "Archivar" : "Restaurar"}
-          </span>
+          {iconOnly ? null : <span className="hidden sm:inline">{label}</span>}
         </Button>
       )}
     />
