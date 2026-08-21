@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Filter, Inbox, SlidersHorizontal, X } from "lucide-react";
+import { Filter, Inbox, Send, SlidersHorizontal, X } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -38,6 +38,8 @@ import { cn } from "@/lib/utils";
 export type PendingRow = {
   approvalId: string;
   createdAt: string;
+  // Quién de compras revisó y liberó la factura. Null si se revirtió la liberación.
+  releasedByName: string | null;
   invoice: {
     id: string;
     invoice_number: string;
@@ -48,6 +50,8 @@ export type PendingRow = {
     status: string | null;
     current_approvals: number;
     required_approvals: number;
+    reviewed_by: string | null;
+    reviewed_at: string | null;
   };
 };
 
@@ -314,6 +318,17 @@ export function PendingApprovalsList({ rows }: { rows: PendingRow[] }) {
                       <div className="mt-1 text-xs text-muted-foreground">
                         Recibida {formatDateTime(inv.received_at)}
                       </div>
+                      {r.releasedByName ? (
+                        <div className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
+                          <Send className="size-3 shrink-0" aria-hidden />
+                          <span className="truncate">
+                            Liberada por{" "}
+                            <span className="font-medium text-neutral-700">
+                              {r.releasedByName}
+                            </span>
+                          </span>
+                        </div>
+                      ) : null}
                     </Link>
                     <InlineApprovalActions
                       invoiceId={inv.id}
@@ -359,6 +374,17 @@ export function PendingApprovalsList({ rows }: { rows: PendingRow[] }) {
                         {inv.supplier_nit ? (
                           <div className="text-xs text-muted-foreground tabular-nums">
                             NIT {inv.supplier_nit}
+                          </div>
+                        ) : null}
+                        {r.releasedByName ? (
+                          <div className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
+                            <Send className="size-3 shrink-0" aria-hidden />
+                            <span>
+                              Liberada por{" "}
+                              <span className="font-medium text-neutral-700">
+                                {r.releasedByName}
+                              </span>
+                            </span>
                           </div>
                         ) : null}
                       </TableCell>

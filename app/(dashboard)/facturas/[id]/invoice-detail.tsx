@@ -5,6 +5,7 @@ import {
   Clock,
   Copy,
   FileCheck2,
+  Send,
   UserX,
   XCircle,
 } from "lucide-react";
@@ -129,16 +130,30 @@ export async function InvoiceDetail({
     ? (invoice.review_checklist as unknown as ChecklistSnapshotEntry[])
     : null;
 
-  // Quién dejó la revisión empezada (para "Guardado hace 2 horas por Juan").
-  let draftSavedByName: string | null = null;
-  if (invoice.review_draft_by && invoice.review_draft_by !== me.profile?.id) {
-    const { data: draftAuthor } = await supabase
+  // Nombres de compras asociados a la factura: quién dejó la revisión empezada
+  // ("Guardado hace 2 horas por Juan") y quién la liberó a los aprobadores.
+  const staffIds = Array.from(
+    new Set(
+      [invoice.review_draft_by, invoice.reviewed_by].filter(
+        (id): id is string => Boolean(id),
+      ),
+    ),
+  );
+  const staffNames = new Map<string, string>();
+  if (staffIds.length > 0) {
+    const { data: staffRows } = await supabase
       .from("approvers")
-      .select("name")
-      .eq("id", invoice.review_draft_by)
-      .maybeSingle();
-    draftSavedByName = draftAuthor?.name ?? null;
+      .select("id, name")
+      .in("id", staffIds);
+    for (const row of staffRows ?? []) staffNames.set(row.id, row.name);
   }
+  const draftSavedByName =
+    invoice.review_draft_by && invoice.review_draft_by !== me.profile?.id
+      ? (staffNames.get(invoice.review_draft_by) ?? null)
+      : null;
+  const releasedByName = invoice.reviewed_by
+    ? (staffNames.get(invoice.reviewed_by) ?? null)
+    : null;
 
   const currentAssignments = (approvals ?? []).map((a) => ({
     approverId: a.approver_id,
@@ -297,6 +312,20 @@ export async function InvoiceDetail({
             className="shrink-0"
           />
         </div>
+        {releasedByName ? (
+          <div className="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
+            <Send className="size-3 shrink-0" aria-hidden />
+            <span className="truncate">
+              Liberada por{" "}
+              <span className="font-medium text-neutral-700">
+                {releasedByName}
+              </span>
+              {invoice.reviewed_at
+                ? ` · ${formatDateTime(invoice.reviewed_at)}`
+                : ""}
+            </span>
+          </div>
+        ) : null}
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">

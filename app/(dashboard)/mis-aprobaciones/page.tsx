@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { AlarmClock, CheckCircle2, Clock, Inbox } from "lucide-react";
+import { AlarmClock, CheckCircle2, Clock, Inbox, Send } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -49,7 +49,13 @@ type InvoiceRef = {
   status: string | null;
   current_approvals: number;
   required_approvals: number;
+  // Quién de compras revisó y liberó la factura a los aprobadores.
+  reviewed_by: string | null;
+  reviewed_at: string | null;
 };
+
+const INVOICE_COLUMNS =
+  "id, invoice_number, supplier_name, supplier_nit, total_amount, received_at, status, current_approvals, required_approvals, reviewed_by, reviewed_at";
 
 export default async function MisAprobacionesPage({
   searchParams,
@@ -71,7 +77,7 @@ export default async function MisAprobacionesPage({
   let historyQuery = supabase
     .from("approvals")
     .select(
-      "id, status, approved_at, invoices(id, invoice_number, supplier_name, supplier_nit, total_amount, received_at, status, current_approvals, required_approvals)",
+      `id, status, approved_at, invoices(${INVOICE_COLUMNS})`,
       { count: "exact" },
     )
     .eq("approver_id", approverId)
@@ -93,7 +99,7 @@ export default async function MisAprobacionesPage({
     supabase
       .from("approvals")
       .select(
-        "id, status, created_at, invoices!inner(id, invoice_number, supplier_name, supplier_nit, total_amount, received_at, status, current_approvals, required_approvals)",
+        `id, status, created_at, invoices!inner(${INVOICE_COLUMNS})`,
       )
       .eq("approver_id", approverId)
       .eq("status", "pending")
@@ -126,6 +132,29 @@ export default async function MisAprobacionesPage({
   const pendingRaw = (pendingResult.data ?? []) as PendingResultRow[];
   const historyRaw = (historyResult.data ?? []) as HistoryResultRow[];
 
+  // Nombre de quien liberó cada factura ("Liberada por María López"). Se resuelve
+  // en una sola consulta para las dos listas; `invoices` tiene varias llaves
+  // foráneas hacia `approvers`, así que un embed anidado sería ambiguo.
+  const reviewerIds = Array.from(
+    new Set(
+      [...pendingRaw, ...historyRaw]
+        .map((r) => pickInvoice(r.invoices)?.reviewed_by)
+        .filter((id): id is string => Boolean(id)),
+    ),
+  );
+  const reviewerNames = new Map<string, string>();
+  if (reviewerIds.length > 0) {
+    const { data: reviewers } = await supabase
+      .from("approvers")
+      .select("id, name")
+      .in("id", reviewerIds);
+    for (const r of reviewers ?? []) reviewerNames.set(r.id, r.name);
+  }
+
+  function releasedBy(inv: InvoiceRef): string | null {
+    return inv.reviewed_by ? (reviewerNames.get(inv.reviewed_by) ?? null) : null;
+  }
+
   const pendingRows: PendingRow[] = pendingRaw
     .map((r) => {
       const inv = pickInvoice(r.invoices);
@@ -134,6 +163,7 @@ export default async function MisAprobacionesPage({
         approvalId: r.id,
         createdAt: r.created_at,
         invoice: inv,
+        releasedByName: releasedBy(inv),
       };
     })
     .filter((x): x is PendingRow => x !== null);
@@ -147,6 +177,7 @@ export default async function MisAprobacionesPage({
         status: r.status,
         approvedAt: r.approved_at,
         invoice: inv,
+        releasedByName: releasedBy(inv),
       };
     })
     .filter(
@@ -157,6 +188,7 @@ export default async function MisAprobacionesPage({
         status: string;
         approvedAt: string | null;
         invoice: InvoiceRef;
+        releasedByName: string | null;
       } => x !== null,
     );
 
@@ -275,6 +307,17 @@ export default async function MisAprobacionesPage({
                           <div className="text-sm text-neutral-700 truncate">
                             {inv.supplier_name}
                           </div>
+                          {r.releasedByName ? (
+                            <div className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
+                              <Send className="size-3 shrink-0" aria-hidden />
+                              <span className="truncate">
+                                Liberada por{" "}
+                                <span className="font-medium text-neutral-700">
+                                  {r.releasedByName}
+                                </span>
+                              </span>
+                            </div>
+                          ) : null}
                         </div>
                         <StatusBadge status={r.status} />
                       </div>
@@ -318,8 +361,19 @@ export default async function MisAprobacionesPage({
                             {inv.invoice_number}
                           </Link>
                         </TableCell>
-                        <TableCell className="text-sm">
-                          {inv.supplier_name}
+                        <TableCell>
+                          <div className="text-sm">{inv.supplier_name}</div>
+                          {r.releasedByName ? (
+                            <div className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
+                              <Send className="size-3 shrink-0" aria-hidden />
+                              <span>
+                                Liberada por{" "}
+                                <span className="font-medium text-neutral-700">
+                                  {r.releasedByName}
+                                </span>
+                              </span>
+                            </div>
+                          ) : null}
                         </TableCell>
                         <TableCell className="text-right whitespace-nowrap">
                           <Money value={inv.total_amount} />
