@@ -1,8 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
-import { ArrowDown, ArrowUp, Lock, Pencil, UserPlus } from "lucide-react";
+import { ArrowDown, ArrowUp, Lock, Loader2, Pencil, UserPlus } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -17,6 +17,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { StatusBadge } from "@/components/status-badge";
 import { SubmitButton } from "@/components/submit-button";
+import { useReviewDraftSaver } from "@/components/purchase-review-draft-context";
 
 type Approver = { id: string; name: string; email: string };
 
@@ -115,14 +116,38 @@ export function ConfigureApproversDialog({
     });
   }
 
+  // Guardar esta configuración recarga la página. Si el diálogo se abre desde
+  // el panel de revisión, primero persistimos el borrador (checklist +
+  // observaciones) para que la recarga no se lleve el trabajo por delante.
+  const draft = useReviewDraftSaver();
+  const [savingDraft, startSavingDraft] = useTransition();
+
+  function openDialog() {
+    if (!draft) {
+      setOpen(true);
+      return;
+    }
+    startSavingDraft(async () => {
+      await draft.save();
+      setOpen(true);
+    });
+  }
+
   const resolvedIcon = triggerIcon ?? (isEdit ? "pencil" : "user-plus");
   const resolvedLabel =
     triggerLabel ?? (isEdit ? "Editar" : "Configurar aprobadores");
 
   return (
     <>
-      <Button size="sm" variant={triggerVariant} onClick={() => setOpen(true)}>
-        {resolvedIcon === "pencil" ? (
+      <Button
+        size="sm"
+        variant={triggerVariant}
+        onClick={openDialog}
+        disabled={savingDraft}
+      >
+        {savingDraft ? (
+          <Loader2 className="size-4 animate-spin" />
+        ) : resolvedIcon === "pencil" ? (
           <Pencil className="size-4" />
         ) : (
           <UserPlus className="size-4" />

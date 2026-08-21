@@ -129,6 +129,17 @@ export async function InvoiceDetail({
     ? (invoice.review_checklist as unknown as ChecklistSnapshotEntry[])
     : null;
 
+  // Quién dejó la revisión empezada (para "Guardado hace 2 horas por Juan").
+  let draftSavedByName: string | null = null;
+  if (invoice.review_draft_by && invoice.review_draft_by !== me.profile?.id) {
+    const { data: draftAuthor } = await supabase
+      .from("approvers")
+      .select("name")
+      .eq("id", invoice.review_draft_by)
+      .maybeSingle();
+    draftSavedByName = draftAuthor?.name ?? null;
+  }
+
   const currentAssignments = (approvals ?? []).map((a) => ({
     approverId: a.approver_id,
     status: a.status,
@@ -297,6 +308,8 @@ export async function InvoiceDetail({
               items={checklistItems}
               savedResponses={savedChecklist}
               reviewNotes={invoice.review_notes}
+              draftSavedAt={invoice.review_draft_saved_at}
+              draftSavedByName={draftSavedByName}
               approverCount={approverCount}
               approvalMode={
                 invoice.approval_mode === "sequential"

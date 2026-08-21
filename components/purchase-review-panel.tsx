@@ -1,16 +1,34 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { useMemo, useState } from "react";
-import { ClipboardCheck, Send, AlertTriangle, Check, X, Users } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { toast } from "sonner";
+import {
+  ClipboardCheck,
+  Send,
+  AlertTriangle,
+  Check,
+  X,
+  Users,
+  Loader2,
+  Save,
+} from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/status-badge";
 import { SubmitButton } from "@/components/submit-button";
+import { ReviewDraftProvider } from "@/components/purchase-review-draft-context";
+import { timeAgo } from "@/lib/format";
 import {
   submitPurchaseReview,
   rejectPurchaseReview,
+  savePurchaseReviewDraft,
 } from "@/app/(dashboard)/facturas/[id]/review-actions";
+
+// Espera tras el último cambio antes de guardar solo. Suficiente para no
+// escribir en cada tecla, corto para que nadie pierda trabajo.
+const AUTOSAVE_MS = 2000;
 
 export type ChecklistItem = {
   id: string;
@@ -41,6 +59,8 @@ export function PurchaseReviewPanel({
   approverSummary,
   approvalMode,
   approversDialog,
+  draftSavedAt,
+  draftSavedByName,
 }: {
   invoiceId: string;
   status: string | null;
@@ -51,6 +71,8 @@ export function PurchaseReviewPanel({
   approverSummary: ApproverSummaryEntry[];
   approvalMode: "parallel" | "sequential";
   approversDialog: ReactNode;
+  draftSavedAt: string | null;
+  draftSavedByName: string | null;
 }) {
   const editable = status === "in_review" || status === "review_rejected";
 
@@ -65,6 +87,21 @@ export function PurchaseReviewPanel({
   }, [savedResponses]);
 
   const [checked, setChecked] = useState<Set<string>>(initialChecked);
+  // Las observaciones son controladas (antes eran un textarea sin estado): hace
+  // falta leer el texto para poder guardarlo como borrador.
+  const [notes, setNotes] = useState(reviewNotes ?? "");
+
+  const [savedAt, setSavedAt] = useState<string | null>(draftSavedAt);
+  const [savedByName, setSavedByName] = useState<string | null>(draftSavedByName);
+  const [saveState, setSaveState] = useState<
+    "idle" | "saving" | "saved" | "error"
+  >("idle");
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  // Hay cambios sin guardar. Evita que el autoguardado dispare al montar y que
+  // se reescriba lo mismo una y otra vez.
+  const dirtyRef = useRef(false);
+  const savingRef = useRef(false);
 
   const allRequiredChecked = useMemo(
     () => items.filter((it) => it.is_required).every((it) => checked.has(it.id)),
@@ -72,6 +109,7 @@ export function PurchaseReviewPanel({
   );
 
   function toggle(id: string, value: boolean) {
+    dirtyRef.current = true;
     setChecked((prev) => {
       const next = new Set(prev);
       if (value) next.add(id);
@@ -79,6 +117,74 @@ export function PurchaseReviewPanel({
       return next;
     });
   }
+
+  const saveDraft = useCallback(
+    async (options?: { notify?: boolean }) => {
+      if (!editable || savingRef.current) return;
+      savingRef.current = true;
+      setSaveState("saving");
+
+      const formData = new FormData();
+      formData.set("invoice_id", invoiceId);
+      formData.set("review_notes", notes);
+      for (const id of checked) formData.set(`chk_${id}`, "on");
+
+      // Se marca limpio antes de la respuesta: si el usuario sigue escribiendo
+      // mientras guarda, esos cambios quedan pendientes para el próximo ciclo.
+      dirtyRef.current = false;
+      const result = await savePurchaseReviewDraft(formData);
+      savingRef.current = false;
+
+      if (result.ok) {
+        setSavedAt(result.savedAt ?? new Date().toISOString());
+        setSavedByName(null); // lo acaba de guardar quien está mirando
+        setSaveState("saved");
+        setSaveError(null);
+        if (options?.notify) toast.success("Borrador guardado");
+      } else {
+        dirtyRef.current = true;
+        setSaveState("error");
+        setSaveError(result.error ?? "No se pudo guardar el borrador");
+        if (options?.notify) toast.error(result.error ?? "No se pudo guardar");
+      }
+    },
+    [checked, notes, editable, invoiceId],
+  );
+
+  // Autoguardado: 2 s después del último cambio. `saveState` está en las
+  // dependencias a propósito: si el usuario siguió escribiendo mientras un
+  // guardado estaba en curso, al terminar este efecto vuelve a correr y agenda
+  // el ciclo que recoge esos últimos cambios.
+  useEffect(() => {
+    if (!editable || !dirtyRef.current) return;
+    const timer = setTimeout(() => void saveDraft(), AUTOSAVE_MS);
+    return () => clearTimeout(timer);
+  }, [checked, notes, editable, saveDraft, saveState]);
+
+  // Refresca la etiqueta "Guardado hace X" mientras la pantalla sigue abierta.
+  const [, forceTick] = useState(0);
+  useEffect(() => {
+    if (!savedAt) return;
+    const interval = setInterval(() => forceTick((n) => n + 1), 60_000);
+    return () => clearInterval(interval);
+  }, [savedAt]);
+
+  // El diálogo de aprobadores recarga la página al guardar; le damos una forma
+  // de persistir el borrador justo antes de abrirse.
+  const draftSaver = useMemo(
+    () => ({
+      save: async () => {
+        // Si hay un autoguardado en curso se espera a que termine (hasta 3 s)
+        // y se guarda de nuevo: así lo último que escribió el usuario queda en
+        // la base antes de que el diálogo recargue la página.
+        for (let i = 0; i < 60 && savingRef.current; i++) {
+          await new Promise((resolve) => setTimeout(resolve, 50));
+        }
+        await saveDraft();
+      },
+    }),
+    [saveDraft],
+  );
 
   if (!editable) {
     // Modo lectura (auditoría): la factura ya fue liberada o cerrada.
@@ -209,10 +315,45 @@ export function PurchaseReviewPanel({
             id="review_notes"
             name="review_notes"
             rows={3}
-            defaultValue={reviewNotes ?? ""}
+            value={notes}
+            onChange={(e) => {
+              dirtyRef.current = true;
+              setNotes(e.target.value);
+            }}
             placeholder="Notas de la revisión, hallazgos o aclaraciones…"
             className="bg-white resize-y"
           />
+          <div aria-live="polite" className="text-xs">
+            {saveState === "saving" ? (
+              <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+                <Loader2 className="size-3 animate-spin" />
+                Guardando…
+              </span>
+            ) : saveState === "error" ? (
+              <span className="inline-flex flex-wrap items-center gap-1.5 text-rose-700">
+                <AlertTriangle className="size-3" />
+                {saveError ?? "No se pudo guardar el borrador"}
+                <button
+                  type="button"
+                  onClick={() => void saveDraft({ notify: true })}
+                  className="font-medium underline underline-offset-2"
+                >
+                  Reintentar
+                </button>
+              </span>
+            ) : savedAt ? (
+              <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+                <Check className="size-3 text-emerald-600" />
+                Guardado {timeAgo(savedAt)}
+                {savedByName ? ` por ${savedByName}` : ""}
+              </span>
+            ) : (
+              <span className="text-muted-foreground">
+                Lo que marques y escribas se guarda solo; puedes dejar la
+                revisión a medias y volver después.
+              </span>
+            )}
+          </div>
         </div>
 
         {/* Aprobadores — se configuran aquí mismo y se activan al liberar */}
@@ -225,7 +366,9 @@ export function PurchaseReviewPanel({
                 {approvalMode === "sequential" ? "En cascada" : "Independiente"}
               </span>
             </div>
-            {approversDialog}
+            <ReviewDraftProvider value={draftSaver}>
+              {approversDialog}
+            </ReviewDraftProvider>
           </div>
           {approverCount === 0 ? (
             <p className="text-xs text-orange-700">
@@ -254,6 +397,20 @@ export function PurchaseReviewPanel({
         ) : null}
 
         <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => void saveDraft({ notify: true })}
+            disabled={saveState === "saving"}
+            className="sm:mr-auto"
+          >
+            {saveState === "saving" ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <Save className="size-4" />
+            )}
+            Guardar borrador
+          </Button>
           <SubmitButton
             formAction={rejectPurchaseReview}
             variant="outline"

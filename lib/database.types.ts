@@ -227,6 +227,8 @@ export type Database = {
           received_at: string | null
           required_approvals: number
           review_checklist: Json | null
+          review_draft_by: string | null
+          review_draft_saved_at: string | null
           review_notes: string | null
           reviewed_at: string | null
           reviewed_by: string | null
@@ -265,6 +267,8 @@ export type Database = {
           received_at?: string | null
           required_approvals?: number
           review_checklist?: Json | null
+          review_draft_by?: string | null
+          review_draft_saved_at?: string | null
           review_notes?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
@@ -303,6 +307,8 @@ export type Database = {
           received_at?: string | null
           required_approvals?: number
           review_checklist?: Json | null
+          review_draft_by?: string | null
+          review_draft_saved_at?: string | null
           review_notes?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
@@ -319,6 +325,13 @@ export type Database = {
           {
             foreignKeyName: "invoices_archived_by_fkey"
             columns: ["archived_by"]
+            isOneToOne: false
+            referencedRelation: "approvers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_review_draft_by_fkey"
+            columns: ["review_draft_by"]
             isOneToOne: false
             referencedRelation: "approvers"
             referencedColumns: ["id"]

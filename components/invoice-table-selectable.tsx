@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { Archive, Copy, Paperclip, Trash2 } from "lucide-react";
+import { Archive, ClipboardCheck, Copy, Paperclip, Trash2 } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -26,7 +26,7 @@ import {
   type InvoiceNote,
 } from "@/components/invoice-notes-popover";
 import { cn } from "@/lib/utils";
-import { formatDateTime } from "@/lib/format";
+import { formatDateTime, timeAgo } from "@/lib/format";
 import {
   bulkArchiveInvoices,
   bulkDeleteInvoices,
@@ -43,6 +43,7 @@ export type SelectableInvoice = {
   current_approvals: number;
   required_approvals: number;
   po_storage_path: string | null;
+  review_draft_saved_at: string | null;
   isDuplicate: boolean;
 };
 
@@ -222,6 +223,9 @@ export function InvoiceTableSelectable({
                   {inv.supplier_nit ? ` · NIT ${inv.supplier_nit}` : ""}
                 </div>
                 {inv.isDuplicate ? <DuplicateBadge /> : null}
+                {showDraftBadge(inv) ? (
+                  <DraftBadge savedAt={inv.review_draft_saved_at!} />
+                ) : null}
               </div>
               <div className="flex items-center gap-2">
                 <StatusBadge status={inv.status} />
@@ -361,6 +365,9 @@ export function InvoiceTableSelectable({
                     ) : null}
                   </Link>
                   {inv.isDuplicate ? <DuplicateBadge /> : null}
+                  {showDraftBadge(inv) ? (
+                    <DraftBadge savedAt={inv.review_draft_saved_at!} />
+                  ) : null}
                 </TableCell>
                 <TableCell>
                   <div className="text-sm">{inv.supplier_name}</div>
@@ -416,6 +423,26 @@ export function InvoiceTableSelectable({
         </Table>
       </div>
     </div>
+  );
+}
+
+function showDraftBadge(inv: SelectableInvoice) {
+  return (
+    Boolean(inv.review_draft_saved_at) &&
+    (inv.status === "in_review" || inv.status === "review_rejected")
+  );
+}
+
+// La revisión de compras ya tiene avance guardado (checklist u observaciones).
+function DraftBadge({ savedAt }: { savedAt: string }) {
+  return (
+    <span
+      className="ml-1.5 inline-flex items-center gap-1 rounded-full bg-sky-50 px-1.5 py-0.5 text-[10px] font-semibold text-sky-700 ring-1 ring-inset ring-sky-200 align-middle"
+      title={`Última edición ${timeAgo(savedAt)}`}
+    >
+      <ClipboardCheck className="size-2.5" />
+      Revisión empezada
+    </span>
   );
 }
 

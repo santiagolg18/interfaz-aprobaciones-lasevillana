@@ -117,7 +117,7 @@ export default async function FacturasPage({
   let query = supabase
     .from("invoices")
     .select(
-      "id, invoice_number, supplier_id, supplier_name, supplier_nit, total_amount, received_at, status, current_approvals, required_approvals, po_storage_path, final_pdf_path, pdf_generation_status",
+      "id, invoice_number, supplier_id, supplier_name, supplier_nit, total_amount, received_at, status, current_approvals, required_approvals, po_storage_path, final_pdf_path, pdf_generation_status, review_draft_saved_at",
       { count: "exact" },
     );
   if (def.statuses === null) query = query.neq("status", "archived");
@@ -450,6 +450,7 @@ export default async function FacturasPage({
             current_approvals: inv.current_approvals,
             required_approvals: inv.required_approvals,
             po_storage_path: inv.po_storage_path,
+            review_draft_saved_at: inv.review_draft_saved_at,
             isDuplicate: duplicateKeys.has(
               `${inv.supplier_nit}|${inv.invoice_number}`,
             ),
